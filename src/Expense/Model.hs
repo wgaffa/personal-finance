@@ -6,6 +6,7 @@ module Expense.Model (
     , tag
     , unRecipient
     , unTag
+    , module Expense.Transaction
 ) where
 
 import Data.Char
@@ -14,6 +15,9 @@ import qualified Data.Text as Text
 import Data.Set (Set)
 
 import Data.Time (Day)
+
+-- Local imports
+import Expense.Transaction
 
 newtype Tag = Tag { unTag :: Text.Text }
     deriving (Show)
