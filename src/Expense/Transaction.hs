@@ -1,33 +1,64 @@
 module Expense.Transaction(
-    Transaction()
+    Account(..)
+    , AccountElement(..)
+    , Transaction(..)
     , credit
     , debit
-    , transaction
+    , decrease
+    , increase
+    , zeroBalance
 ) where
 
-data Transaction a = Empty | Debit a | Credit a
+-- Text manipulation
+import qualified Data.Text as Text
+
+-- containers
+import qualified Data.Sequence as Seq
+
+-- time and date
+import Data.Time (Day)
+
+data AccountElement = Asset | Liability | Equity | Income | Expenses
+    deriving (Show)
+
+data Account a = Account {
+    accountName :: Text.Text
+    , accountElement :: AccountElement
+    , accountTransactions :: [Transaction a]
+} deriving (Show)
+
+data Transaction a = Transaction {
+    transactionDate :: Day
+    , transactionEntry :: TransactionEntry a
+} deriving (Show)
+
+class Accountable f where
+    increase :: f -> (a -> TransactionEntry a)
+    decrease :: f -> (a -> TransactionEntry a)
+
+instance Accountable (AccountElement) where
+    increase (Asset) = Debit
+    increase (Liability) = Credit
+    increase (Equity) = Credit
+    increase (Income) = Credit
+    increase (Expenses) = Debit
+    decrease (Asset) = Credit
+    decrease (Liability) = Debit
+    decrease (Equity) = Debit
+    decrease (Income) = Debit
+    decrease (Expenses) = Credit
+
+data TransactionEntry a = Debit a | Credit a
     deriving (Show, Eq)
 
-instance (Ord a, Num a) => Semigroup (Transaction a) where
-    (<>) = mappend
-
-instance (Ord a, Num a) => Monoid (Transaction a) where
-    mempty = Empty
-    mappend a b = transaction (toNum a + toNum b)
-
-toNum :: (Num a) => Transaction a -> a
-toNum (Credit x) = negate x
-toNum (Debit x) = x
-toNum Empty = 0
-
-transaction :: (Ord a, Num a) => a -> Transaction a
-transaction amount
-    | amount < 0 = credit amount
-    | amount > 0 = debit amount
-    | otherwise = Empty
-
-credit :: (Num a) => a -> Transaction a
+credit :: (Num a) => a -> TransactionEntry a
 credit = Credit . abs
 
-debit :: (Num a) => a -> Transaction a
+debit :: (Num a) => a -> TransactionEntry a
 debit = Debit . abs
+
+zeroBalance :: (Eq a, Num a) => [Transaction a]-> Bool
+zeroBalance xs = foldr ((+) . element . transactionEntry) 0 xs == 0
+    where
+        element (Debit x) = x
+        element (Credit x) = negate x

@@ -1,7 +1,6 @@
 module Expense.Model (
     Recipient()
     , Tag()
-    , Expense(..)
     , recipient
     , tag
     , unRecipient
@@ -23,14 +22,6 @@ newtype Tag = Tag { unTag :: Text.Text }
     deriving (Show)
 newtype Recipient = Recipient { unRecipient :: Text.Text }
     deriving (Show)
-
-data Expense = Expense {
-    expenseAmount :: Transaction Integer
-    , expenseTags :: Set Tag
-    , expenseDescription :: Text.Text
-    , expenseRecipient :: Recipient
-    , expenseDate :: Day
-} deriving (Show)
 
 recipient :: Text.Text -> Maybe Recipient
 recipient recip
