@@ -1,6 +1,7 @@
 module Expense.Transaction(
     Account(..)
     , AccountElement(..)
+    , Ledger(..)
     , Transaction(..)
     , credit
     , debit
@@ -21,19 +22,21 @@ import qualified Data.Sequence as Seq
 import Data.Time (Day)
 
 data AccountElement = Asset | Liability | Equity | Income | Expenses
-    deriving (Show)
+    deriving (Ord, Eq, Show)
 
 newtype PrintableString = PrintableString { unPrintableString :: Text.Text }
-    deriving (Show)
+    deriving (Ord, Eq, Show)
 
 data Account a = Account {
     accountName :: PrintableString
     , accountElement :: AccountElement
-} deriving (Show)
+} deriving (Ord, Eq, Show)
+
+data Ledger a = Ledger (Account a) [Transaction a]
+    deriving(Show)
 
 data Transaction a = Transaction {
     transactionDate :: Day
-    , transactionAccount :: Account a
     , transactionAmount :: TransactionAmount a
 } deriving (Show)
 
