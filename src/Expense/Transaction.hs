@@ -33,6 +33,7 @@ data Account a = Account {
 
 data Transaction a = Transaction {
     transactionDate :: Day
+    , transactionAccount :: Account a
     , transactionAmount :: TransactionAmount a
 } deriving (Show)
 
@@ -40,22 +41,22 @@ class Accountable f where
     increase :: f -> (a -> TransactionAmount a)
     decrease :: f -> (a -> TransactionAmount a)
 
-instance Accountable (AccountElement) where
-    increase (Asset) = Debit
-    increase (Liability) = Credit
-    increase (Equity) = Credit
-    increase (Income) = Credit
-    increase (Expenses) = Debit
-    decrease (Asset) = Credit
-    decrease (Liability) = Debit
-    decrease (Equity) = Debit
-    decrease (Income) = Debit
-    decrease (Expenses) = Credit
+instance Accountable AccountElement where
+    increase Asset = Debit
+    increase Liability = Credit
+    increase Equity = Credit
+    increase Income = Credit
+    increase Expenses = Debit
+    decrease Asset = Credit
+    decrease Liability = Debit
+    decrease Equity = Debit
+    decrease Income = Debit
+    decrease Expenses = Credit
 
 data TransactionAmount a = Debit a | Credit a
     deriving (Show, Eq)
 
-printableString :: Text.Text -> Maybe (PrintableString)
+printableString :: Text.Text -> Maybe PrintableString
 printableString name
     | Text.all isSpace name = Nothing
     | otherwise = Just $ PrintableString name
