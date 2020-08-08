@@ -33,12 +33,12 @@ data Account a = Account {
 
 data Transaction a = Transaction {
     transactionDate :: Day
-    , transactionEntry :: TransactionEntry a
+    , transactionAmount :: TransactionAmount a
 } deriving (Show)
 
 class Accountable f where
-    increase :: f -> (a -> TransactionEntry a)
-    decrease :: f -> (a -> TransactionEntry a)
+    increase :: f -> (a -> TransactionAmount a)
+    decrease :: f -> (a -> TransactionAmount a)
 
 instance Accountable (AccountElement) where
     increase (Asset) = Debit
@@ -52,7 +52,7 @@ instance Accountable (AccountElement) where
     decrease (Income) = Debit
     decrease (Expenses) = Credit
 
-data TransactionEntry a = Debit a | Credit a
+data TransactionAmount a = Debit a | Credit a
     deriving (Show, Eq)
 
 printableString :: Text.Text -> Maybe (PrintableString)
@@ -60,14 +60,14 @@ printableString name
     | Text.all isSpace name = Nothing
     | otherwise = Just $ PrintableString name
 
-credit :: (Num a) => a -> TransactionEntry a
+credit :: (Num a) => a -> TransactionAmount a
 credit = Credit . abs
 
-debit :: (Num a) => a -> TransactionEntry a
+debit :: (Num a) => a -> TransactionAmount a
 debit = Debit . abs
 
 zeroBalance :: (Eq a, Num a) => [Transaction a]-> Bool
-zeroBalance xs = foldr ((+) . element . transactionEntry) 0 xs == 0
+zeroBalance xs = foldr ((+) . element . transactionAmount) 0 xs == 0
     where
         element (Debit x) = x
         element (Credit x) = negate x
