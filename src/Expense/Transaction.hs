@@ -6,10 +6,12 @@ module Expense.Transaction(
     , debit
     , decrease
     , increase
+    , printableString
     , zeroBalance
 ) where
 
 -- Text manipulation
+import Data.Char
 import qualified Data.Text as Text
 
 -- containers
@@ -21,10 +23,12 @@ import Data.Time (Day)
 data AccountElement = Asset | Liability | Equity | Income | Expenses
     deriving (Show)
 
+newtype PrintableString = PrintableString { unPrintableString :: Text.Text }
+    deriving (Show)
+
 data Account a = Account {
-    accountName :: Text.Text
+    accountName :: PrintableString
     , accountElement :: AccountElement
-    , accountTransactions :: [Transaction a]
 } deriving (Show)
 
 data Transaction a = Transaction {
@@ -50,6 +54,11 @@ instance Accountable (AccountElement) where
 
 data TransactionEntry a = Debit a | Credit a
     deriving (Show, Eq)
+
+printableString :: Text.Text -> Maybe (PrintableString)
+printableString name
+    | Text.all isSpace name = Nothing
+    | otherwise = Just $ PrintableString name
 
 credit :: (Num a) => a -> TransactionEntry a
 credit = Credit . abs
