@@ -1,13 +1,19 @@
 module Expense.Transaction(
     Account(..)
     , AccountElement(..)
-    , Ledger(..)
     , AccountTransaction(..)
+    , AccountTypeable(..)
+    , BalanceAmount(..)
+    , BalanceSheet
+    , Ledger(..)
+    , TransactionType(..)
     , credit
     , debit
     , decrease
     , increase
     , printableString
+    , toNumeral
+    , toSigNum
     , zeroBalance
 ) where
 
@@ -21,8 +27,16 @@ import qualified Data.Sequence as Seq
 -- time and date
 import Data.Time (Day)
 
+type BalanceSheet a = AccountElement -> [Ledger a] -> BalanceAmount a
+type ZeroBalance a = [TransactionAmount a] -> Bool
+
+data TransactionType = Debit | Credit
+    deriving (Eq, Enum, Bounded, Show)
+data BalanceAmount a = BalanceAmount TransactionType a
+    deriving (Show)
+
 data AccountElement = Asset | Liability | Equity | Income | Expenses
-    deriving (Ord, Eq, Show)
+    deriving (Ord, Eq, Enum, Bounded, Show)
 
 newtype PrintableString = PrintableString { unPrintableString :: Text.Text }
     deriving (Ord, Eq, Show)
@@ -47,23 +61,35 @@ data AccountTransaction a = AccountTransaction {
     , atAmount :: TransactionAmount a
 } deriving (Show)
 
+class AccountTypeable f where
+    transactionType :: f -> TransactionType
+    toBalance :: (Num a) => f -> a -> BalanceAmount a
+    toBalance l x = BalanceAmount (transactionType l) $ toSigNum (transactionType l) * x
+
 class Accountable f where
-    increase :: f -> (a -> TransactionAmount a)
-    decrease :: f -> (a -> TransactionAmount a)
+    increase :: (Num a) => f -> (a -> TransactionAmount a)
+    decrease :: (Num a) => f -> (a -> TransactionAmount a)
+
+instance AccountTypeable AccountElement where
+    transactionType Asset     = Debit
+    transactionType Liability = Credit
+    transactionType Equity    = Credit
+    transactionType Income    = Credit
+    transactionType Expenses  = Debit
 
 instance Accountable AccountElement where
-    increase Asset = Debit
-    increase Liability = Credit
-    increase Equity = Credit
-    increase Income = Credit
-    increase Expenses = Debit
-    decrease Asset = Credit
-    decrease Liability = Debit
-    decrease Equity = Debit
-    decrease Income = Debit
-    decrease Expenses = Credit
+    increase Asset     = debit
+    increase Liability = credit
+    increase Equity    = credit
+    increase Income    = credit
+    increase Expenses  = debit
+    decrease Asset     = credit
+    decrease Liability = debit
+    decrease Equity    = debit
+    decrease Income    = debit
+    decrease Expenses  = credit
 
-data TransactionAmount a = Debit a | Credit a
+data TransactionAmount a = TransactionAmount TransactionType a
     deriving (Show, Eq)
 
 printableString :: Text.Text -> Maybe PrintableString
@@ -72,13 +98,17 @@ printableString name
     | otherwise = Just $ PrintableString name
 
 credit :: (Num a) => a -> TransactionAmount a
-credit = Credit . abs
+credit = TransactionAmount Credit . abs
 
 debit :: (Num a) => a -> TransactionAmount a
-debit = Debit . abs
+debit = TransactionAmount Debit . abs
 
 zeroBalance :: (Eq a, Num a) => [AccountTransaction a]-> Bool
-zeroBalance xs = foldr ((+) . element . atAmount) 0 xs == 0
-    where
-        element (Debit x) = x
-        element (Credit x) = negate x
+zeroBalance xs = foldr ((+) . toNumeral . atAmount) 0 xs == 0
+
+toNumeral :: (Num a) => TransactionAmount a -> a
+toNumeral (TransactionAmount t x) = toSigNum t * x
+
+toSigNum :: (Num a) => TransactionType -> a
+toSigNum Debit = 1
+toSigNum Credit = -1
