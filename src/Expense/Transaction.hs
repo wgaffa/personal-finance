@@ -2,7 +2,7 @@ module Expense.Transaction(
     Account(..)
     , AccountElement(..)
     , Ledger(..)
-    , Transaction(..)
+    , TransactionEntry(..)
     , credit
     , debit
     , decrease
@@ -32,10 +32,10 @@ data Account a = Account {
     , accountElement :: AccountElement
 } deriving (Ord, Eq, Show)
 
-data Ledger a = Ledger (Account a) [Transaction a]
+data Ledger a = Ledger (Account a) [TransactionEntry a]
     deriving(Show)
 
-data Transaction a = Transaction {
+data TransactionEntry a = TransactionEntry {
     transactionDate :: Day
     , transactionAmount :: TransactionAmount a
 } deriving (Show)
@@ -70,7 +70,7 @@ credit = Credit . abs
 debit :: (Num a) => a -> TransactionAmount a
 debit = Debit . abs
 
-zeroBalance :: (Eq a, Num a) => [Transaction a]-> Bool
+zeroBalance :: (Eq a, Num a) => [TransactionEntry a]-> Bool
 zeroBalance xs = foldr ((+) . element . transactionAmount) 0 xs == 0
     where
         element (Debit x) = x
