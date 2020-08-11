@@ -1,14 +1,19 @@
 module Expense.Transaction(
-    Account(..)
+    -- * Types
+    AbsoluteValue()
+    , Account(..)
     , AccountElement(..)
     , AccountTransaction(..)
     , AccountTypeable(..)
     , BalanceAmount(..)
     , BalanceSheet
     , Ledger(..)
+    , PrintableString()
     , Transaction(..)
     , TransactionEntry(..)
     , TransactionType(..)
+    -- * Functions
+    , absoluteValue
     , accountTransaction
     , credit
     , debit
@@ -52,12 +57,15 @@ instance Accountable AccountElement where
     decrease Income    = debit
     decrease Expenses  = credit
 
+-- | Different transaction types
 data TransactionType = Debit | Credit
     deriving (Eq, Enum, Bounded, Show)
 
+-- | All different account elements (types)
 data AccountElement = Asset | Liability | Equity | Income | Expenses
     deriving (Ord, Eq, Enum, Bounded, Show)
 
+-- | A string that contains atleast one printable character
 newtype PrintableString = PrintableString { unPrintableString :: Text.Text }
     deriving (Ord, Eq, Show)
 
@@ -66,21 +74,36 @@ data Account = Account {
     , accountElement :: AccountElement
 } deriving (Ord, Eq, Show)
 
-data TransactionEntry a = TransactionEntry Account (TransactionAmount a)
+-- | Absolute value container for any absolute number, see constructor 'absoluteValue'
+newtype AbsoluteValue a = AbsoluteValue { unAbsoluteValue :: a }
     deriving (Show)
 
+-- | Constructor for 'AbsoluteValue'
+-- This creates an absolute value buy applying 'Prelude.abs' to the argument
+absoluteValue :: (Num a) => a -> AbsoluteValue a
+absoluteValue = AbsoluteValue . abs
+
+-- | Transaction entry is a single entry in a daybook or journal entry
+data TransactionEntry a = TransactionEntry {
+        teAccount :: Account -- ^ Account affected
+        , teAmount :: TransactionAmount a -- ^ The amount to transfer
+    } deriving (Show)
+
+-- | Single atomic transaction of several entries
+-- the list of entries should all be perfectly balanced
 data Transaction a = Transaction {
-    transactionDate :: Day
-    , transactionEntries :: [TransactionEntry a]
+    transactionDate :: Day -- ^ Date of the transaction
+    , transactionEntries :: [TransactionEntry a] -- ^ Entries of transactions
 } deriving (Show)
 
+-- | The actual amount debited or credited
 data TransactionAmount a = TransactionAmount TransactionType a
     deriving (Show, Eq)
 
 -- | Account specific transaction that goes in to a ledger
 data AccountTransaction a = AccountTransaction {
-    atDate :: Day
-    , atAmount :: TransactionAmount a
+    atDate :: Day -- ^ Date of the transaction
+    , atAmount :: TransactionAmount a -- ^ Amount debited or credited
 } deriving (Show)
 
 accountTransaction :: Day -> (a -> TransactionAmount a) -> a -> AccountTransaction a
@@ -92,18 +115,27 @@ ledgerTransaction (Ledger account transactions) date f amount =
   where
     appendTransaction = transactions ++ [accountTransaction date (f account) amount]
 
+-- | Constructor for 'PrintableString'
 printableString :: Text.Text -> Maybe PrintableString
 printableString name
     | Text.all isSpace name = Nothing
     | otherwise = Just $ PrintableString name
 
-credit :: (Num a) => a -> TransactionAmount a
-credit = TransactionAmount Credit . abs
+-- | Creates a credit transaction of amount a
+credit :: a -> TransactionAmount a
+credit = TransactionAmount Credit
 
-debit :: (Num a) => a -> TransactionAmount a
-debit = TransactionAmount Debit . abs
+-- | Creates a debit transaction of amount a
+debit :: a -> TransactionAmount a
+debit = TransactionAmount Debit
 
-transactionEntry :: (Num a) => (Account -> a -> TransactionAmount a) -> Account -> a -> TransactionEntry a
+-- | Constructor for 'TransactionEntry'
+transactionEntry :: 
+    -- | Function to use to determine type of transaction
+    (Account -> a -> TransactionAmount a)
+     -> Account -- ^ Account to use for the transaction
+     -> a -- ^ Amount to transfer
+     -> TransactionEntry a -- ^ Return a new entry of a
 transactionEntry f account = TransactionEntry account . f account
 
 -- experimental below
