@@ -36,7 +36,7 @@ class Accountable f where
     increase :: (Num a) => f -> (a -> TransactionAmount a)
     decrease :: (Num a) => f -> (a -> TransactionAmount a)
 
-instance Accountable (Account a) where
+instance Accountable Account where
     increase = increase . accountElement
     decrease = increase . accountElement
 
@@ -61,12 +61,12 @@ data AccountElement = Asset | Liability | Equity | Income | Expenses
 newtype PrintableString = PrintableString { unPrintableString :: Text.Text }
     deriving (Ord, Eq, Show)
 
-data Account a = Account {
+data Account = Account {
     accountName :: PrintableString
     , accountElement :: AccountElement
 } deriving (Ord, Eq, Show)
 
-data TransactionEntry a = TransactionEntry (Account a) (TransactionAmount a)
+data TransactionEntry a = TransactionEntry Account (TransactionAmount a)
     deriving (Show)
 
 data Transaction a = Transaction {
@@ -86,7 +86,7 @@ data AccountTransaction a = AccountTransaction {
 accountTransaction :: Day -> (a -> TransactionAmount a) -> a -> AccountTransaction a
 accountTransaction date f = AccountTransaction date . f
 
-ledgerTransaction :: Ledger a -> Day -> (Account a -> a -> TransactionAmount a) -> a -> Ledger a
+ledgerTransaction :: Ledger a -> Day -> (Account -> a -> TransactionAmount a) -> a -> Ledger a
 ledgerTransaction (Ledger account transactions) date f amount =
     Ledger account appendTransaction
   where
@@ -103,7 +103,7 @@ credit = TransactionAmount Credit . abs
 debit :: (Num a) => a -> TransactionAmount a
 debit = TransactionAmount Debit . abs
 
-transactionEntry :: (Num a) => (Account a -> a -> TransactionAmount a) -> Account a -> a -> TransactionEntry a
+transactionEntry :: (Num a) => (Account -> a -> TransactionAmount a) -> Account -> a -> TransactionEntry a
 transactionEntry f account = TransactionEntry account . f account
 
 -- experimental below
@@ -113,7 +113,7 @@ type ZeroBalance a = [TransactionAmount a] -> Bool
 data BalanceAmount a = BalanceAmount TransactionType a
     deriving (Show)
 
-data Ledger a = Ledger (Account a) [AccountTransaction a]
+data Ledger a = Ledger Account [AccountTransaction a]
     deriving(Show)
 
 class AccountTypeable f where
