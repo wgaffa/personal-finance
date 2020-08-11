@@ -9,10 +9,12 @@ module Expense.Transaction(
     , Transaction(..)
     , TransactionEntry(..)
     , TransactionType(..)
+    , accountTransaction
     , credit
     , debit
     , decrease
     , increase
+    , ledgerTransaction
     , printableString
     , toNumeral
     , toSigNum
@@ -75,6 +77,21 @@ data Transaction a = Transaction {
 data TransactionAmount a = TransactionAmount TransactionType a
     deriving (Show, Eq)
 
+-- | Account specific transaction that goes in to a ledger
+data AccountTransaction a = AccountTransaction {
+    atDate :: Day
+    , atAmount :: TransactionAmount a
+} deriving (Show)
+
+accountTransaction :: Day -> (a -> TransactionAmount a) -> a -> AccountTransaction a
+accountTransaction date f = AccountTransaction date . f
+
+ledgerTransaction :: Ledger a -> Day -> (Account a -> a -> TransactionAmount a) -> a -> Ledger a
+ledgerTransaction (Ledger account transactions) date f amount =
+    Ledger account appendTransaction
+  where
+    appendTransaction = transactions ++ [accountTransaction date (f account) amount]
+
 printableString :: Text.Text -> Maybe PrintableString
 printableString name
     | Text.all isSpace name = Nothing
@@ -98,11 +115,6 @@ data BalanceAmount a = BalanceAmount TransactionType a
 
 data Ledger a = Ledger (Account a) [AccountTransaction a]
     deriving(Show)
-
-data AccountTransaction a = AccountTransaction {
-    atDate :: Day
-    , atAmount :: TransactionAmount a
-} deriving (Show)
 
 class AccountTypeable f where
     transactionType :: f -> TransactionType
