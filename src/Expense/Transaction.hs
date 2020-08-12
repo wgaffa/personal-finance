@@ -4,8 +4,6 @@ module Expense.Transaction(
     , Account(..)
     , AccountElement(..)
     , AccountTransaction(..)
-    , AccountTypeable(..)
-    , BalanceAmount(..)
     , BalanceSheet
     , Ledger(..)
     , PrintableString()
@@ -134,7 +132,7 @@ debit :: a -> TransactionAmount a
 debit = TransactionAmount Debit
 
 -- | Constructor for 'TransactionEntry'
-transactionEntry :: 
+transactionEntry ::
     -- | Function to use to determine type of transaction
     (Account -> a -> TransactionAmount a)
      -> Account -- ^ Account to use for the transaction
@@ -143,26 +141,11 @@ transactionEntry ::
 transactionEntry f account = TransactionEntry account . f account
 
 -- experimental below
-type BalanceSheet a = AccountElement -> [Ledger a] -> BalanceAmount a
+type BalanceSheet a b = AccountElement -> [Ledger a] -> TransactionAmount b
 type ZeroBalance a = [TransactionAmount a] -> Bool
-
-data BalanceAmount a = BalanceAmount TransactionType a
-    deriving (Show)
 
 data Ledger a = Ledger Account [AccountTransaction a]
     deriving(Show)
-
-class AccountTypeable f where
-    transactionType :: f -> TransactionType
-    toBalance :: (Num a) => f -> a -> BalanceAmount a
-    toBalance l x = BalanceAmount (transactionType l) $ toSigNum (transactionType l) * x
-
-instance AccountTypeable AccountElement where
-    transactionType Asset     = Debit
-    transactionType Liability = Credit
-    transactionType Equity    = Credit
-    transactionType Income    = Credit
-    transactionType Expenses  = Debit
 
 zeroBalance :: (Eq a, Num a) => [TransactionAmount a]-> Bool
 zeroBalance xs = foldr ((+) . toNumeral) 0 xs == 0
