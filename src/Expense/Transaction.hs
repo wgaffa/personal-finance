@@ -106,7 +106,11 @@ data AccountTransaction a = AccountTransaction {
     , atAmount :: TransactionAmount a -- ^ Amount debited or credited
 } deriving (Show)
 
-accountTransaction :: Day -> (a -> TransactionAmount a) -> a -> AccountTransaction a
+-- | Constructor for 'AccountTransaction'
+accountTransaction :: Day -- ^ Date of transaction
+    -> (a -> TransactionAmount a) -- ^ Transform a to a 'TransactionAmount' of a
+    -> a -- ^ Value for the transaction
+    -> AccountTransaction a -- ^ New transaction
 accountTransaction date f = AccountTransaction date . f
 
 ledgerTransaction :: Ledger a -> Day -> (Account -> a -> TransactionAmount a) -> a -> Ledger a
