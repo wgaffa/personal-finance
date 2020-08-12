@@ -38,8 +38,8 @@ import qualified Data.Sequence as Seq
 import Data.Time (Day)
 
 class Accountable f where
-    increase :: (Num a) => f -> (a -> TransactionAmount a)
-    decrease :: (Num a) => f -> (a -> TransactionAmount a)
+    increase :: f -> (a -> TransactionAmount a)
+    decrease :: f -> (a -> TransactionAmount a)
 
 instance Accountable Account where
     increase = increase . accountElement
