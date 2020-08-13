@@ -8,6 +8,7 @@ module Expense.Transaction(
     , Ledger(..)
     , PrintableString()
     , Transaction(..)
+    , TransactionAmount(..)
     , TransactionEntry(..)
     , TransactionType(..)
     -- * Functions
@@ -22,6 +23,8 @@ module Expense.Transaction(
     , toNumeral
     , toSigNum
     , transactionEntry
+    , transactionType
+    , unAbsoluteValue
     , zeroBalance
 ) where
 
@@ -29,31 +32,35 @@ module Expense.Transaction(
 import Data.Char
 import qualified Data.Text as Text
 
--- containers
-import qualified Data.Sequence as Seq
-
 -- time and date
 import Data.Time (Day)
 
 class Accountable f where
+    transactionType :: f -> TransactionType
     increase :: f -> (a -> TransactionAmount a)
     decrease :: f -> (a -> TransactionAmount a)
 
 instance Accountable Account where
+    transactionType = transactionType . accountElement
     increase = increase . accountElement
     decrease = increase . accountElement
 
 instance Accountable AccountElement where
-    increase Asset     = debit
-    increase Liability = credit
-    increase Equity    = credit
-    increase Income    = credit
-    increase Expenses  = debit
-    decrease Asset     = credit
-    decrease Liability = debit
-    decrease Equity    = debit
-    decrease Income    = debit
-    decrease Expenses  = credit
+    increase        Asset     = debit
+    increase        Liability = credit
+    increase        Equity    = credit
+    increase        Income    = credit
+    increase        Expenses  = debit
+    decrease        Asset     = credit
+    decrease        Liability = debit
+    decrease        Equity    = debit
+    decrease        Income    = debit
+    decrease        Expenses  = credit
+    transactionType Asset     = Debit
+    transactionType Liability = Credit
+    transactionType Equity    = Credit
+    transactionType Income    = Credit
+    transactionType Expenses  = Debit
 
 -- | Different transaction types
 data TransactionType = Debit | Credit
@@ -97,6 +104,9 @@ data Transaction a = Transaction {
 -- | The actual amount debited or credited
 data TransactionAmount a = TransactionAmount TransactionType a
     deriving (Show, Eq)
+
+instance Functor TransactionAmount where
+    fmap f (TransactionAmount t amount) = TransactionAmount t $ f amount
 
 -- | Account specific transaction that goes in to a ledger
 data AccountTransaction a = AccountTransaction {
