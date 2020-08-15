@@ -13,7 +13,6 @@ module Expense.Transaction(
     , TransactionType(..)
     -- * Functions
     , absoluteValue
-    , accountTransaction
     , credit
     , debit
     , decrease
@@ -113,13 +112,6 @@ data AccountTransaction a = AccountTransaction {
     atDate :: Day -- ^ Date of the transaction
     , atAmount :: TransactionAmount a -- ^ Amount debited or credited
 } deriving (Show)
-
--- | Constructor for 'AccountTransaction'
-accountTransaction :: Day -- ^ Date of transaction
-    -> (a -> TransactionAmount a) -- ^ Transform a to a 'TransactionAmount' of a
-    -> a -- ^ Value for the transaction
-    -> AccountTransaction a -- ^ New transaction
-accountTransaction date f = AccountTransaction date . f
 
 ledgerTransaction :: AccountTransaction a -> Ledger a -> Ledger a
 ledgerTransaction transaction (Ledger account transactions) =
