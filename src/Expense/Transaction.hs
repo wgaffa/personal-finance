@@ -21,7 +21,6 @@ module Expense.Transaction(
     , printableString
     , toNumeral
     , toSigNum
-    , transactionEntry
     , transactionType
     , unAbsoluteValue
     , unPrintableString
@@ -129,15 +128,6 @@ credit = TransactionAmount Credit
 -- | Creates a debit transaction of amount a
 debit :: a -> TransactionAmount a
 debit = TransactionAmount Debit
-
--- | Constructor for 'TransactionEntry'
-transactionEntry ::
-    -- | Function to use to determine type of transaction
-    (Account -> a -> TransactionAmount a)
-     -> Account -- ^ Account to use for the transaction
-     -> a -- ^ Amount to transfer
-     -> TransactionEntry a -- ^ Return a new entry of a
-transactionEntry f account = TransactionEntry account . f account
 
 -- experimental below
 type BalanceSheet a b = AccountElement -> [Ledger a] -> TransactionAmount b
