@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4aee12f5a04119089575f12bb8edb13fb7741496ec782d5101d993e4adb515f9
+-- hash: 64c1c34ab86c9aa8f232a9175d323c776186751928f56c246ace283b02948f22
 
 name:           expense-tracker
 version:        0.1.0.0
@@ -52,6 +52,7 @@ executable expense-tracker-exe
       base >=4.7 && <5
     , containers
     , expense-tracker
+    , mtl
     , text
     , time
   default-language: Haskell2010

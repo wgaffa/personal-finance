@@ -38,6 +38,7 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - expense-tracker
+    - mtl
 
 tests:
   expense-tracker-test:

@@ -121,11 +121,11 @@ accountTransaction :: Day -- ^ Date of transaction
     -> AccountTransaction a -- ^ New transaction
 accountTransaction date f = AccountTransaction date . f
 
-ledgerTransaction :: Ledger a -> Day -> (Account -> a -> TransactionAmount a) -> a -> Ledger a
-ledgerTransaction (Ledger account transactions) date f amount =
+ledgerTransaction :: AccountTransaction a -> Ledger a -> Ledger a
+ledgerTransaction transaction (Ledger account transactions) =
     Ledger account appendTransaction
   where
-    appendTransaction = transactions ++ [accountTransaction date (f account) amount]
+    appendTransaction = transactions ++ [transaction]
 
 -- | Constructor for 'PrintableString'
 printableString :: Text.Text -> Maybe PrintableString
