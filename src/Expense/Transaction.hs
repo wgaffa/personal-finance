@@ -24,6 +24,7 @@ module Expense.Transaction(
     , transactionEntry
     , transactionType
     , unAbsoluteValue
+    , unPrintableString
     , zeroBalance
 ) where
 
