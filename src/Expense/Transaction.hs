@@ -44,22 +44,18 @@ instance Accountable Account where
     increase = increase . accountElement
     decrease = increase . accountElement
 
+debitAccounts :: [AccountElement]
+debitAccounts = [Asset, Expenses]
 instance Accountable AccountElement where
-    increase        Asset     = debit
-    increase        Liability = credit
-    increase        Equity    = credit
-    increase        Income    = credit
-    increase        Expenses  = debit
-    decrease        Asset     = credit
-    decrease        Liability = debit
-    decrease        Equity    = debit
-    decrease        Income    = debit
-    decrease        Expenses  = credit
-    transactionType Asset     = Debit
-    transactionType Liability = Credit
-    transactionType Equity    = Credit
-    transactionType Income    = Credit
-    transactionType Expenses  = Debit
+    increase x
+        | x `elem` debitAccounts = debit
+        | otherwise = credit
+    decrease x
+        | x `elem` debitAccounts = credit
+        | otherwise = debit
+    transactionType x
+        | x `elem` debitAccounts = Debit
+        | otherwise = Credit
 
 -- | Different transaction types
 data TransactionType = Debit | Credit
