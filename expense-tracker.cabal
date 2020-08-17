@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c23e209eea520b0eb1f03b05fc2a112452d513b1aa66ee0a76f059de8c14831d
+-- hash: e31ca2392e727b551ab33c30b0302a10ee51bac242a24ea9955092b73f58b34c
 
 name:           expense-tracker
 version:        0.1.0.0
@@ -27,6 +27,8 @@ source-repository head
 
 library
   exposed-modules:
+      Expense.Account
+      Expense.Daybook
       Expense.Model
       Expense.Transaction
       Lib
