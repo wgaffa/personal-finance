@@ -6,7 +6,7 @@ module Utility.Absolute
 
 -- | Absolute value container for any absolute number, see constructor 'absoluteValue'
 newtype AbsoluteValue a = AbsoluteValue { unAbsoluteValue :: a }
-    deriving (Show)
+    deriving (Ord, Eq, Show)
 
 instance (Num a) => Semigroup (AbsoluteValue a) where
     (AbsoluteValue a) <> (AbsoluteValue b) = AbsoluteValue (a + b)

@@ -9,11 +9,14 @@ module Expense.Transaction(
     , toNumeral
     , toSigNum
     , zeroBalance
+    , mzeroBalance
 ) where
 
 -- Text manipulation
 import Data.Char
 import qualified Data.Text as Text
+
+import Data.Function
 
 -- time and date
 import Data.Time (Day)
@@ -43,6 +46,15 @@ type ZeroBalance a = [TransactionAmount a] -> Bool
 
 zeroBalance :: (Eq a, Num a) => [TransactionAmount a]-> Bool
 zeroBalance xs = foldr ((+) . toNumeral) 0 xs == 0
+
+mzeroBalance :: (Eq a, Monoid a) => [TransactionAmount a] -> Bool
+mzeroBalance xs =
+    let toAmount (TransactionAmount _ a) = a
+        (debits, credits) = mapPair (map toAmount) $ splitTransactions xs
+    in mconcat debits == mconcat credits
+
+mapPair :: (a -> b) -> (a, a) -> (b, b)
+mapPair f = uncurry ((,) `on` f)
 
 toNumeral :: (Num a) => TransactionAmount a -> a
 toNumeral (TransactionAmount t x) = toSigNum t * x
