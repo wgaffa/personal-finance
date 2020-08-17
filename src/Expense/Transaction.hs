@@ -19,6 +19,7 @@ module Expense.Transaction(
     , increase
     , ledgerTransaction
     , printableString
+    , splitTransactions
     , toNumeral
     , toSigNum
     , transactionEntry
@@ -154,3 +155,11 @@ toNumeral (TransactionAmount t x) = toSigNum t * x
 toSigNum :: (Num a) => TransactionType -> a
 toSigNum Debit = 1
 toSigNum Credit = -1
+
+-- | Split transactions in debits and credits
+splitTransactions :: [TransactionAmount a] -> ([TransactionAmount a], [TransactionAmount a])
+splitTransactions =
+    foldr (\ trans@(TransactionAmount t _) res -> splitTypes t trans res) ([], [])
+  where
+    splitTypes Debit x (debits, credits) = (x:debits, credits)
+    splitTypes Credit x (debits, credits) = (debits, x:credits)
