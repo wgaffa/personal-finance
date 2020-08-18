@@ -39,6 +39,7 @@ executables:
     dependencies:
     - expense-tracker
     - mtl
+    - optparse-applicative
 
 tests:
   expense-tracker-test:

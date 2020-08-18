@@ -3,12 +3,16 @@ module Expense.Account
     , Account(..)
     , AccountElement(..)
     , AccountName()
+    , AccountNumber()
     , AccountTransaction(..)
     , accountName
+    , accountNumber
     , decrease
     , increase
     , transactionType
     , ledgerTransaction
+    , unAccountName
+    , unAccountNumber
     ) where
 
 import Data.Char
@@ -29,15 +33,26 @@ data AccountElement = Asset | Liability | Equity | Income | Expenses
 newtype AccountName = AccountName { unAccountName :: Text.Text }
     deriving (Ord, Eq, Show)
 
--- | Constructor for 'AccountName'
+-- | Smart constructor for 'AccountName'
 accountName :: Text.Text -> Maybe AccountName
 accountName name
     | Text.all isSpace name = Nothing
     | otherwise = Just $ AccountName name
 
+-- | An account number is any positive number
+newtype AccountNumber = AccountNumber { unAccountNumber :: Int }
+    deriving (Ord, Eq, Show)
+
+-- | Smart constructor for 'AccountNumber'
+accountNumber :: Int -> Maybe AccountNumber
+accountNumber number
+    | number > 0 = Just $ AccountNumber number
+    | otherwise = Nothing
+
 -- | Account structure
 data Account = Account {
-    name :: AccountName
+    number :: AccountNumber
+    , name :: AccountName
     , element :: AccountElement
 } deriving (Ord, Eq, Show)
 
