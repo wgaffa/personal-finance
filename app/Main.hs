@@ -1,6 +1,17 @@
 module Main where
 
-import Lib
+import Options.Applicative
+import Data.Semigroup ((<>))
+
+import OptParser
 
 main :: IO ()
-main = someFunc
+main = dbSelections =<< execParser opts
+  where
+    opts = info (options <**> helper)
+        ( fullDesc
+        <> progDesc "Use double bookkeeping to handle your finances"
+        <> header "Personal Finance Tracker")
+
+dbSelections :: Options -> IO ()
+dbSelections x = putStrLn $ "Filename received: " ++ dbConnection x
