@@ -4,7 +4,6 @@ module Repl
 
 import Control.Monad.Trans
 import System.Console.Repline
-import System.Process (callCommand)
 
 import Data.List (isPrefixOf, unwords)
 
