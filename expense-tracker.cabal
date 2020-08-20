@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4fd3a7fe234b2d24357c59803a6451abaebbd4e5db9a78b241b08baadc38f5ad
+-- hash: 96322316f23bfa43f064ac5980462ceaf30e98d047d0eaabf9290bad5cbe82a1
 
 name:           expense-tracker
 version:        0.1.0.0
@@ -48,6 +48,7 @@ executable expense-tracker-exe
   main-is: Main.hs
   other-modules:
       OptParser
+      Repl
       Paths_expense_tracker
   hs-source-dirs:
       app
@@ -58,6 +59,8 @@ executable expense-tracker-exe
     , expense-tracker
     , mtl
     , optparse-applicative
+    , process
+    , repline
     , text
     , time
   default-language: Haskell2010

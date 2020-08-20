@@ -40,6 +40,7 @@ executables:
     - expense-tracker
     - mtl
     - optparse-applicative
+    - repline
 
 tests:
   expense-tracker-test:
