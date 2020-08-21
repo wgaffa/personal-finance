@@ -27,7 +27,7 @@ data Ledger a = Ledger Account [AccountTransaction a]
 
 -- | All different account elements (types)
 data AccountElement = Asset | Liability | Equity | Income | Expenses
-    deriving (Ord, Eq, Enum, Bounded, Show)
+    deriving (Ord, Eq, Enum, Bounded, Show, Read)
 
 -- | A string that contains atleast one printable character
 newtype AccountName = AccountName { unAccountName :: Text.Text }
