@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 362880cc5c47de69bd0f6cba70430679d1ea23a783d82be511633adb5ffcdcd6
+-- hash: e47424eb47aa54a5bb6605c578cd0a1a0b5b802824d3057c9f22cd18d5c19e0c
 
 name:           expense-tracker
 version:        0.1.0.0
@@ -47,6 +47,7 @@ library
 executable expense-tracker-exe
   main-is: Main.hs
   other-modules:
+      Core.Utils
       OptParser
       Repl
       Paths_expense_tracker

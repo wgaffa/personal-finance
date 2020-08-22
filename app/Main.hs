@@ -10,6 +10,11 @@ import OptParser
 
 import Expense.Account
 
+import Core.Utils
+
+data AccountError = InvalidName | InvalidNumber | InvalidElement
+    deriving (Show)
+
 main :: IO ()
 main = do
     createAccountInteractive
@@ -20,14 +25,20 @@ createAccountInteractive = do
     name <- prompt "Name: "
     element <- prompt "Element: "
     let account = createAccount number name element
-        in print account
+    case account of
+        Right x -> prettyPrint x
+        Left x -> putStrLn $ show x
 
-createAccount :: String -> String -> String -> Maybe Account
+prettyPrint :: Account -> IO ()
+prettyPrint (Account number name element) = do
+    putStrLn $ (Text.unpack . unAccountName $ name) ++ " (" ++ (show . unAccountNumber $ number) ++ ") " ++ show element
+
+createAccount :: String -> String -> String -> Either AccountError Account
 createAccount number name element =
     Account
-    <$> accountNumber (read number)
-    <*> accountName (Text.pack name)
-    <*> readMaybe element
+        <$> maybeToEither InvalidNumber (accountNumber . read $ number)
+        <*> maybeToEither InvalidName (accountName (Text.pack name))
+        <*> maybeToEither InvalidElement (readMaybe element)
 
 prompt :: String -> IO String
 prompt text = do
