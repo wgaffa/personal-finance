@@ -36,9 +36,11 @@ prettyPrint (Account number name element) = do
 createAccount :: String -> String -> String -> Either AccountError Account
 createAccount number name element =
     Account
-        <$> maybeToEither InvalidNumber (accountNumber . read $ number)
+        <$> maybeToEither InvalidNumber readNumber
         <*> maybeToEither InvalidName (accountName (Text.pack name))
         <*> maybeToEither InvalidElement (readMaybe element)
+  where
+    readNumber = readMaybe number >>= accountNumber
 
 prompt :: String -> IO String
 prompt text = do
