@@ -24,52 +24,22 @@ main = do
     res <- runExceptT createAccountInteractive
     case res of
         Left x -> putStrLn $ "Error: " ++ show x
-        Right x -> print x >> main
+        Right x -> prettyPrint x >> main
 
 createAccountInteractive :: ExceptT AccountError IO Account
-createAccountInteractive = do
-    number <- liftIO . prompt $ "Number: "
-    name <- liftIO . prompt $ "Name: "
-    element <- liftIO . prompt $ "Element: "
-    -- return ()
-    let account = createAccount number name element
-    case account of
-        Right x -> ExceptT . return $ Right x
-        Left x ->  ExceptT . return $ Left x
+createAccountInteractive = Account
+    <$> promptExcept "Number: " (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
+    <*> promptExcept "Name: " (maybeToEither InvalidNumber . accountName . Text.pack)
+    <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
 
 prettyPrint :: Account -> IO ()
 prettyPrint (Account number name element) = do
     putStrLn $ (Text.unpack . unAccountName $ name) ++ " (" ++ (show . unAccountNumber $ number) ++ ") " ++ show element
 
-promptAccount :: ExceptT AccountError IO Account
-promptAccount = Account
-    <$> promptNumber
-    <*> promptName
-    <*> promptElement
-
-promptName :: ExceptT AccountError IO AccountName
-promptName =
-    (liftIO . prompt $ "Name: ")
-    >>= except . maybeToEither InvalidName . accountName . Text.pack
-
-promptNumber :: ExceptT AccountError IO AccountNumber
-promptNumber =
-    (liftIO . prompt $ "Number: ")
-    >>= except . maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe
-
-promptElement :: ExceptT AccountError IO AccountElement
-promptElement =
-    (liftIO . prompt $ "Element: ")
-    >>= except . maybeToEither InvalidElement . readMaybe
-
-createAccount :: String -> String -> String -> Either AccountError Account
-createAccount number name element =
-    Account
-        <$> maybeToEither InvalidNumber readNumber
-        <*> maybeToEither InvalidName (accountName (Text.pack name))
-        <*> maybeToEither InvalidElement (readMaybe element)
-  where
-    readNumber = readMaybe number >>= accountNumber
+promptExcept :: String -> (String -> Either e a) -> ExceptT e IO a
+promptExcept text f =
+    (liftIO . prompt $ text)
+    >>= except . f
 
 prompt :: String -> IO String
 prompt text = do
