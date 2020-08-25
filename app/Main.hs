@@ -26,8 +26,6 @@ main = do
         Left x -> putStrLn $ "Error: " ++ show x
         Right x -> print x >> main
 
-printInformation x = print x
-
 createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = do
     number <- liftIO . prompt $ "Number: "
@@ -42,6 +40,27 @@ createAccountInteractive = do
 prettyPrint :: Account -> IO ()
 prettyPrint (Account number name element) = do
     putStrLn $ (Text.unpack . unAccountName $ name) ++ " (" ++ (show . unAccountNumber $ number) ++ ") " ++ show element
+
+promptAccount :: ExceptT AccountError IO Account
+promptAccount = Account
+    <$> promptNumber
+    <*> promptName
+    <*> promptElement
+
+promptName :: ExceptT AccountError IO AccountName
+promptName =
+    (liftIO . prompt $ "Name: ")
+    >>= except . maybeToEither InvalidName . accountName . Text.pack
+
+promptNumber :: ExceptT AccountError IO AccountNumber
+promptNumber =
+    (liftIO . prompt $ "Number: ")
+    >>= except . maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe
+
+promptElement :: ExceptT AccountError IO AccountElement
+promptElement =
+    (liftIO . prompt $ "Element: ")
+    >>= except . maybeToEither InvalidElement . readMaybe
 
 createAccount :: String -> String -> String -> Either AccountError Account
 createAccount number name element =
