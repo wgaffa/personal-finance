@@ -5,6 +5,10 @@ import System.IO
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.Class
+import Control.Monad.IO.Class
+
 import Repl
 import OptParser
 
@@ -17,17 +21,23 @@ data AccountError = InvalidName | InvalidNumber | InvalidElement
 
 main :: IO ()
 main = do
-    createAccountInteractive
+    res <- runExceptT createAccountInteractive
+    case res of
+        Left x -> putStrLn $ "Error: " ++ show x
+        Right x -> print x >> main
 
-createAccountInteractive :: IO ()
+printInformation x = print x
+
+createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = do
-    number <- prompt "Number: "
-    name <- prompt "Name: "
-    element <- prompt "Element: "
+    number <- liftIO . prompt $ "Number: "
+    name <- liftIO . prompt $ "Name: "
+    element <- liftIO . prompt $ "Element: "
+    -- return ()
     let account = createAccount number name element
     case account of
-        Right x -> prettyPrint x
-        Left x -> putStrLn $ show x
+        Right x -> ExceptT . return $ Right x
+        Left x ->  ExceptT . return $ Left x
 
 prettyPrint :: Account -> IO ()
 prettyPrint (Account number name element) = do

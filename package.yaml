@@ -41,6 +41,7 @@ executables:
     - mtl
     - optparse-applicative
     - repline
+    - transformers
 
 tests:
   expense-tracker-test:
