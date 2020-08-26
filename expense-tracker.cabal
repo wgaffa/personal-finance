@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bd5a2e9e48e74ff993e9db34acff9fe3e1ca6d8760a2e05ec435153312140011
+-- hash: 5344f067d289bba72ea40e7229344ccdf21e4c0fced04b5d4ab56446f488aaf3
 
 name:           expense-tracker
 version:        0.1.0.0
@@ -47,6 +47,7 @@ library
 executable expense-tracker-exe
   main-is: Main.hs
   other-modules:
+      Core.Database
       Core.Utils
       OptParser
       Repl
@@ -61,6 +62,7 @@ executable expense-tracker-exe
     , mtl
     , optparse-applicative
     , repline
+    , sqlite-simple
     , text
     , time
     , transformers
