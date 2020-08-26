@@ -7,6 +7,7 @@ module Expense.Account
     , AccountTransaction(..)
     , accountName
     , accountNumber
+    , emptyAccountNumber
     , decrease
     , increase
     , transactionType
@@ -42,6 +43,9 @@ accountName name
 -- | An account number is any positive number
 newtype AccountNumber = AccountNumber { unAccountNumber :: Int }
     deriving (Ord, Eq, Show)
+
+emptyAccountNumber :: AccountNumber
+emptyAccountNumber = AccountNumber 0
 
 -- | Smart constructor for 'AccountNumber'
 accountNumber :: Int -> Maybe AccountNumber

@@ -42,6 +42,7 @@ executables:
     - optparse-applicative
     - repline
     - transformers
+    - sqlite-simple
 
 tests:
   expense-tracker-test:
