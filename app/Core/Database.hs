@@ -16,14 +16,9 @@ instance ToField AccountNumber where
     toField = toField . unAccountNumber
 
 instance FromField AccountNumber where
-    fromField f = case retrieveInt $ fieldData f of
-        (Just i) -> Ok . maybe emptyAccountNumber id . accountNumber . fromIntegral $ i
-        Nothing -> returnError ConversionFailed f "need an int"
-      where
-        retrieveInt sqlData =
-            case sqlData of
-                (SQLInteger i) -> Just i
-                _ -> Nothing
+    fromField f = case fieldData f of
+        (SQLInteger i) -> Ok . maybe emptyAccountNumber id . accountNumber . fromIntegral $ i
+        _ -> returnError ConversionFailed f "need an int"
 
 instance ToField AccountName where
     toField = toField . unAccountName
