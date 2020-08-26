@@ -2,7 +2,11 @@
 
 module Core.Database
     ( elementId
+    , withConnectionGeneral
     ) where
+
+import Control.Monad.Trans.Maybe
+import Control.Monad.IO.Class (liftIO)
 
 import Database.SQLite.Simple
 import Database.SQLite.Simple.Ok
@@ -33,10 +37,18 @@ saveAccount :: Account -> IO ()
 saveAccount = undefined
 
 -- | Find the id of an account element in the database
-elementId :: AccountElement -> Connection -> IO Int
+elementId :: AccountElement -> Connection -> MaybeT IO Int
 elementId element conn = do
-    r <- query conn q (Only (show element))
+    r <- liftIO $ query conn q (Only (show element))
     case r of
         (x:_) -> return . fromOnly $ x
-        _ -> error "Database is invalid, check the integrity of the AccountElement table"
+        _ -> MaybeT . return $ Nothing
   where q = "select id from AccountElement where name=?"
+
+-- | Run with connection in a MaybeT context
+-- | MaybeT is not part of MonadUnliftIO (not following the laws?) so we
+-- | can use this function instead as an easier to read function call
+withConnectionGeneral :: String -> (Connection -> MaybeT IO a) -> MaybeT IO a
+withConnectionGeneral db exec = 
+    MaybeT $ do
+        withConnection db (\c -> runMaybeT (exec c))

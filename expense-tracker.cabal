@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5344f067d289bba72ea40e7229344ccdf21e4c0fced04b5d4ab56446f488aaf3
+-- hash: 99828f1508fc0f073d679ac6c601a4fe740d54892e401e57f982313e9defc653
 
 name:           expense-tracker
 version:        0.1.0.0
@@ -31,7 +31,6 @@ library
       Expense.Daybook
       Expense.Model
       Expense.Transaction
-      Lib
       Utility.Absolute
   other-modules:
       Paths_expense_tracker
@@ -66,6 +65,8 @@ executable expense-tracker-exe
     , text
     , time
     , transformers
+    , unliftio
+    , unliftio-core
   default-language: Haskell2010
 
 test-suite expense-tracker-test
