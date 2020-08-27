@@ -1,7 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Core.Database
     ( elementId
+    , saveAccount
     , withConnectionGeneral
     ) where
 
@@ -33,8 +35,12 @@ instance ToField AccountElement where
 instance ToRow Account where
     toRow (Account number name element) = toRow (number, name, element)
 
-saveAccount :: Account -> IO ()
-saveAccount = undefined
+saveAccount :: Account -> Connection -> IO ()
+saveAccount Account{..} conn = execute conn q params
+  where
+    foreignId = elementId $ element
+    params = (number, name, element)
+    q = "insert into Accounts (id, name, element_id) values (?, ?, ?)"
 
 -- | Find the id of an account element in the database
 elementId :: AccountElement -> Connection -> MaybeT IO Int
