@@ -8,7 +8,9 @@ module Core.Database
     , withConnectionGeneral
     ) where
 
+import Control.Monad (guard, when, unless)
 import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Except
 import Control.Monad.IO.Class (liftIO)
 
 import Database.SQLite.Simple
@@ -56,13 +58,28 @@ instance ToField AccountElement where
 instance ToRow Account where
     toRow (Account number name element) = toRow (number, name, element)
 
-saveAccount :: Account -> Connection -> IO ()
-saveAccount Account{..} conn =
-    runMaybeT (elementId element conn)
-    >>= \x -> return (number, name, x)
-    >>= execute conn q
+saveAccount :: Account -> Connection -> ExceptT String IO ()
+saveAccount acc@Account{..} conn =
+    checkAccount (unAccountNumber number) conn
+    >> insertAccount acc conn
+
+checkAccount :: Int -> Connection -> ExceptT String IO ()
+checkAccount number conn =
+    liftIO (accountExists number conn)
+    >>= \x -> ExceptT $ return (when x (Left "account already exists"))
+
+insertAccount :: Account -> Connection -> ExceptT String IO ()
+insertAccount Account{..} conn =
+    liftIO (runMaybeT (elementId element conn))
+    >>= liftIO . (\x -> (execute conn q (number, name, x)))
+    >> return ()
   where
     q = "insert into Accounts (id, name, element_id) values (?, ?, ?)"
+
+accountExists :: Int -> Connection -> IO Bool
+accountExists number conn =
+    runMaybeT (findAccount number conn)
+    >>= return . maybe False (const True)
 
 findAccount :: Int -> Connection -> MaybeT IO Account
 findAccount number conn = do
