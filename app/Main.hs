@@ -1,4 +1,4 @@
-module Main where
+module Main(main) where
 
 import System.IO
 
@@ -9,22 +9,36 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 
+import Database.SQLite.Simple
+
 import Repl
 import OptParser
+import Core.Database
 
 import Expense.Account
 
 import Core.Utils
 
-data AccountError = InvalidName | InvalidNumber | InvalidElement
+data AccountError
+    = InvalidName
+    | InvalidNumber
+    | InvalidElement
+    | AccountNotSaved String
     deriving (Show)
 
 main :: IO ()
 main = do
-    res <- runExceptT createAccountInteractive
+    conn <- open "db.sqlite3"
+    res <- runExceptT $ createAccount conn
     case res of
         Left x -> putStrLn $ "Error: " ++ show x
         Right x -> prettyPrint x >> main
+    close conn
+
+createAccount :: Connection -> ExceptT AccountError IO Account
+createAccount conn =
+    createAccountInteractive
+    >>= \acc -> saveAccount acc conn `catchE` (throwE . AccountNotSaved)
 
 createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = Account
