@@ -2,13 +2,11 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module Core.Database
-    ( elementId
-    , saveAccount
+    ( saveAccount
     , findAccount
-    , withConnectionGeneral
     ) where
 
-import Control.Monad (guard, when, unless)
+import Control.Monad (when)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Except
@@ -16,7 +14,6 @@ import Control.Monad.IO.Class (liftIO)
 
 import Database.SQLite.Simple
 import Database.SQLite.Simple.Ok
-import Database.SQLite.Simple.FromRow
 import Database.SQLite.Simple.ToField
 import Database.SQLite.Simple.FromField
 
@@ -59,8 +56,6 @@ instance ToField AccountElement where
 instance ToRow Account where
     toRow (Account number name element) = toRow (number, name, element)
 
-data AccountEnvironment = AccountEnvironment Account Connection
-
 saveAccount :: Account -> Connection -> ExceptT String IO Account
 saveAccount acc@Account{..} conn =
     checkAccount (unAccountNumber number) conn
@@ -102,11 +97,3 @@ elementId element conn = do
         (x:_) -> return . fromOnly $ x
         _ -> MaybeT . return $ Nothing
   where q = "select id from AccountElement where name=?"
-
--- | Run with connection in a MaybeT context
--- | MaybeT is not part of MonadUnliftIO (not following the laws?) so we
--- | can use this function instead as an easier to read function call
-withConnectionGeneral :: String -> (Connection -> MaybeT IO a) -> MaybeT IO a
-withConnectionGeneral db exec = 
-    MaybeT $ do
-        withConnection db (\c -> runMaybeT (exec c))
