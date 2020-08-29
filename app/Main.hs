@@ -32,7 +32,7 @@ main = do
     res <- runExceptT $ createAccount conn
     case res of
         Left x -> putStrLn $ "Error: " ++ show x
-        Right x -> prettyPrint x >> main
+        Right x -> putStrLn ("Saved account: " ++ prettyPrint x) >> main
     close conn
 
 createAccount :: Connection -> ExceptT AccountError IO Account
@@ -46,9 +46,9 @@ createAccountInteractive = Account
     <*> promptExcept "Name: " (maybeToEither InvalidNumber . accountName . Text.pack)
     <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
 
-prettyPrint :: Account -> IO ()
+prettyPrint :: Account -> String
 prettyPrint (Account number name element) = do
-    putStrLn $ (Text.unpack . unAccountName $ name) ++ " (" ++ (show . unAccountNumber $ number) ++ ") " ++ show element
+    (Text.unpack . unAccountName $ name) ++ " (" ++ (show . unAccountNumber $ number) ++ ") " ++ show element
 
 promptExcept :: String -> (String -> Either e a) -> ExceptT e IO a
 promptExcept text f =
