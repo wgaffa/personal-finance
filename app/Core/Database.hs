@@ -65,7 +65,7 @@ saveAccount acc@Account{..} conn =
 checkAccount :: Int -> Connection -> ExceptT String IO ()
 checkAccount number conn =
     liftIO (accountExists number conn)
-    >>= \x -> ExceptT $ return (when x (Left "account already exists"))
+    >>= \x -> when x (throwE "account already exists")
 
 insertAccount :: Account -> Connection -> IO ()
 insertAccount Account{..} conn =
