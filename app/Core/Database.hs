@@ -61,10 +61,11 @@ instance ToRow Account where
 
 data AccountEnvironment = AccountEnvironment Account Connection
 
-saveAccount :: Account -> Connection -> ExceptT String IO ()
+saveAccount :: Account -> Connection -> ExceptT String IO Account
 saveAccount acc@Account{..} conn =
     checkAccount (unAccountNumber number) conn
     >> lift (insertAccount acc conn)
+    >> ExceptT (return $ Right acc)
 
 checkAccount :: Int -> Connection -> ExceptT String IO ()
 checkAccount number conn =
@@ -75,7 +76,6 @@ insertAccount :: Account -> Connection -> IO ()
 insertAccount Account{..} conn =
     runMaybeT (elementId element conn)
     >>= \x -> (execute conn q (number, name, x))
-    >> return ()
   where
     q = "insert into Accounts (id, name, element_id) values (?, ?, ?)"
 
