@@ -9,6 +9,7 @@ module Core.Database
     ) where
 
 import Control.Monad (guard, when, unless)
+import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Except
 import Control.Monad.IO.Class (liftIO)
@@ -58,20 +59,22 @@ instance ToField AccountElement where
 instance ToRow Account where
     toRow (Account number name element) = toRow (number, name, element)
 
+data AccountEnvironment = AccountEnvironment Account Connection
+
 saveAccount :: Account -> Connection -> ExceptT String IO ()
 saveAccount acc@Account{..} conn =
     checkAccount (unAccountNumber number) conn
-    >> insertAccount acc conn
+    >> lift (insertAccount acc conn)
 
 checkAccount :: Int -> Connection -> ExceptT String IO ()
 checkAccount number conn =
     liftIO (accountExists number conn)
     >>= \x -> ExceptT $ return (when x (Left "account already exists"))
 
-insertAccount :: Account -> Connection -> ExceptT String IO ()
+insertAccount :: Account -> Connection -> IO ()
 insertAccount Account{..} conn =
-    liftIO (runMaybeT (elementId element conn))
-    >>= liftIO . (\x -> (execute conn q (number, name, x)))
+    runMaybeT (elementId element conn)
+    >>= \x -> (execute conn q (number, name, x))
     >> return ()
   where
     q = "insert into Accounts (id, name, element_id) values (?, ?, ?)"
