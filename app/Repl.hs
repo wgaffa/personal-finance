@@ -2,7 +2,8 @@ module Repl
     ( repl
     ) where
 
-import Control.Monad.Trans
+import Control.Monad.Trans.Class
+import Control.Monad.IO.Class
 import System.Console.Repline
 
 import Data.List (isPrefixOf, unwords)

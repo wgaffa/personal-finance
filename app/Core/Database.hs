@@ -7,7 +7,7 @@ module Core.Database
     ) where
 
 import Control.Monad (when)
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Except
 import Control.Monad.IO.Class (liftIO)

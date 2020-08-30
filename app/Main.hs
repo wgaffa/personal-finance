@@ -1,4 +1,6 @@
-module Main(main) where
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
+module Main where
 
 import System.IO
 
@@ -6,6 +8,7 @@ import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
 import Control.Monad.Trans.Except
+import Control.Monad.Reader
 import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 
@@ -26,19 +29,36 @@ data AccountError
     | AccountNotSaved String
     deriving (Show)
 
+data AppEnvironment = AppEnvironment
+    { connectionString :: String
+    } deriving (Show)
+
+type App = ReaderT AppEnvironment (ExceptT AccountError IO)
+
+-- newtype App a = App
+--     { runApp :: ReaderT AppEnvironment (ExceptT AccountError IO) a }
+--     deriving (Monad, MonadIO, MonadReader AppEnvironment)
+
+defaultConfig :: AppEnvironment
+defaultConfig = AppEnvironment
+    { connectionString = "db.sqlite3" }
+
 main :: IO ()
 main = do
-    conn <- open "db.sqlite3"
-    res <- runExceptT $ createAccount conn
+    res <- runExceptT (runReaderT createAccount defaultConfig)
     case res of
         Left x -> putStrLn $ "Error: " ++ show x
         Right x -> putStrLn ("Saved account: " ++ prettyPrint x) >> main
-    close conn
 
-createAccount :: Connection -> ExceptT AccountError IO Account
-createAccount conn =
-    createAccountInteractive
-    >>= \acc -> saveAccount acc conn `catchE` (throwE . AccountNotSaved)
+createAccount :: ReaderT AppEnvironment (ExceptT AccountError IO) Account
+createAccount = do
+    acc <- lift $ createAccountInteractive
+    liftIO $ putStrLn "Attempting to save account"
+    cfg <- ask
+    conn <- liftIO . open $ connectionString cfg
+    lift $ saveAccount acc conn `catchE` (throwE . AccountNotSaved)
+    liftIO $ close conn
+    return acc
 
 createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = Account
