@@ -43,6 +43,7 @@ executables:
     - repline
     - transformers
     - sqlite-simple
+    - exceptions
 
 tests:
   expense-tracker-test:

@@ -8,6 +8,7 @@ import System.IO
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
+import Control.Monad.Catch
 import Control.Monad.Trans.Except
 import Control.Monad.Reader
 import Control.Monad.Trans.Class
@@ -55,7 +56,9 @@ main = do
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
     (Options {..}) <- execArgParser
-    return defaultConfig {connectionString = dbConnection}
+    return defaultConfig {
+        connectionString = maybe "db.sqlite3" id dbConnection
+        }
 
 createAccount :: ReaderT AppEnvironment (ExceptT AccountError IO) Account
 createAccount = do
@@ -63,9 +66,13 @@ createAccount = do
     liftIO $ putStrLn "Attempting to save account"
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
-    lift $ saveAccount acc conn `catchE` (throwE . AccountNotSaved)
-    liftIO $ close conn
+    result <- lift $ onError (saveAccount acc conn `catchE` (throwE . AccountNotSaved)) (liftIO $ closeConn conn)
+    liftIO $ print result
+    liftIO $ closeConn conn
     return acc
+
+closeConn :: Connection -> IO ()
+closeConn conn = putStrLn "Closing connection" >> close conn
 
 createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = Account
