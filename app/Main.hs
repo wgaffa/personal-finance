@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
@@ -42,13 +43,19 @@ defaultConfig = AppEnvironment
 
 main :: IO ()
 main = do
-    res <- runExceptT (runReaderT createAccount defaultConfig)
+    env <- readEnvironment
+    res <- runExceptT (runReaderT createAccount env)
     case res of
         Left x -> putStrLn $ "Error: " ++ show x
         Right x -> putStr "Saved account: "
             >> printAccount x
             >> putChar '\n'
             >> main
+
+readEnvironment :: IO AppEnvironment
+readEnvironment = do
+    (Options {..}) <- execArgParser
+    return defaultConfig {connectionString = dbConnection}
 
 createAccount :: ReaderT AppEnvironment (ExceptT AccountError IO) Account
 createAccount = do
