@@ -17,6 +17,7 @@ import Database.SQLite.Simple
 import Repl
 import OptParser
 import Core.Database
+import Core.PrettyPrint
 
 import Expense.Account
 
@@ -35,10 +36,6 @@ data AppEnvironment = AppEnvironment
 
 type App = ReaderT AppEnvironment (ExceptT AccountError IO)
 
--- newtype App a = App
---     { runApp :: ReaderT AppEnvironment (ExceptT AccountError IO) a }
---     deriving (Monad, MonadIO, MonadReader AppEnvironment)
-
 defaultConfig :: AppEnvironment
 defaultConfig = AppEnvironment
     { connectionString = "db.sqlite3" }
@@ -48,7 +45,10 @@ main = do
     res <- runExceptT (runReaderT createAccount defaultConfig)
     case res of
         Left x -> putStrLn $ "Error: " ++ show x
-        Right x -> putStrLn ("Saved account: " ++ prettyPrint x) >> main
+        Right x -> putStr "Saved account: "
+            >> printAccount x
+            >> putChar '\n'
+            >> main
 
 createAccount :: ReaderT AppEnvironment (ExceptT AccountError IO) Account
 createAccount = do
@@ -65,10 +65,6 @@ createAccountInteractive = Account
     <$> promptExcept "Number: " (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
     <*> promptExcept "Name: " (maybeToEither InvalidNumber . accountName . Text.pack)
     <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
-
-prettyPrint :: Account -> String
-prettyPrint (Account number name element) = do
-    (Text.unpack . unAccountName $ name) ++ " (" ++ (show . unAccountNumber $ number) ++ ") " ++ show element
 
 promptExcept :: String -> (String -> Either e a) -> ExceptT e IO a
 promptExcept text f =
