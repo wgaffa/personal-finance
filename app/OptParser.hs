@@ -3,15 +3,17 @@ module OptParser
     , execArgParser
     ) where
 
+import Control.Applicative
+
 import Options.Applicative
 import Data.Semigroup ((<>))
 
 data Options = Options
-    { dbConnection :: String }
+    { dbConnection :: Maybe String }
     deriving (Show)
 
-connectionOpt :: Parser String
-connectionOpt = strOption (
+connectionOpt :: Parser (Maybe String)
+connectionOpt = optional $ strOption (
     long "db-connection"
     <> help "Connection information to the database")
 
