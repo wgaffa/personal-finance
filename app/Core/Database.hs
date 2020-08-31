@@ -4,6 +4,7 @@
 module Core.Database
     ( saveAccount
     , findAccount
+    , allAccounts
     ) where
 
 import Control.Monad (when)
@@ -80,6 +81,12 @@ accountExists :: Int -> Connection -> IO Bool
 accountExists number conn =
     runMaybeT (findAccount number conn)
     >>= return . maybe False (const True)
+
+allAccounts :: Connection -> IO [Account]
+allAccounts conn = query_ conn q
+  where q = "select a.id, a.name, e.name from accounts a \
+    \inner join accountelement e on a.element_id=e.id \
+    \order by a.id"
 
 findAccount :: Int -> Connection -> MaybeT IO Account
 findAccount number conn = do

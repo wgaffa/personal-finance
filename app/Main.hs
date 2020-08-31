@@ -60,6 +60,13 @@ readEnvironment = do
         connectionString = maybe "db.sqlite3" id dbConnection
         }
 
+showAccounts :: App ()
+showAccounts = do
+    cfg <- ask
+    conn <- liftIO . open $ connectionString cfg
+    accounts <- liftIO $ allAccounts conn
+    liftIO $ mapM_ (putStrLn . show) accounts
+
 createAccount :: ReaderT AppEnvironment (ExceptT AccountError IO) Account
 createAccount = do
     acc <- lift $ createAccountInteractive
@@ -67,7 +74,6 @@ createAccount = do
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
     lift $ finally (save acc conn) (liftIO $ closeConn conn)
-    return acc
   where
       save acc conn = saveAccount acc conn `catchE` (throwE . AccountNotSaved)
 
