@@ -4,3 +4,4 @@
 *.sqlite*
 .history
 .ghci
+.ghcid

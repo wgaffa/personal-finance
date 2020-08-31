@@ -64,9 +64,12 @@ toSigNum Debit = 1
 toSigNum Credit = -1
 
 -- | Split transactions in debits and credits
-splitTransactions :: [TransactionAmount a] -> ([TransactionAmount a], [TransactionAmount a])
+splitTransactions ::
+    [TransactionAmount a]
+    -> ([TransactionAmount a], [TransactionAmount a])
 splitTransactions =
-    foldr (\ trans@(TransactionAmount t _) res -> splitTypes t trans res) ([], [])
+    foldr split ([], [])
   where
+    split trans@(TransactionAmount t _) acc = splitTypes t trans acc
     splitTypes Debit x (debits, credits) = (x:debits, credits)
     splitTypes Credit x (debits, credits) = (debits, x:credits)

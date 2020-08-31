@@ -35,7 +35,9 @@ instance FromField AccountName where
 instance FromField AccountNumber where
     fromField f =
         case fieldData f of
-            (SQLInteger i) -> Ok . maybe emptyAccountNumber id . accountNumber . fromIntegral $ i
+            (SQLInteger i) -> Ok
+                . maybe emptyAccountNumber id
+                . accountNumber . fromIntegral $ i
             _ -> returnError ConversionFailed f "need an int"
 
 instance FromField AccountElement where
@@ -86,7 +88,8 @@ findAccount number conn = do
         (x:_) -> return x
         _ -> MaybeT . return $ Nothing
   where
-    q = "select a.id, a.name, e.name from accounts a inner join accountelement e on a.element_id=e.id where a.id=?"
+    q = "select a.id, a.name, e.name from accounts a \
+        \inner join accountelement e on a.element_id=e.id where a.id=?"
     params = Only number
 
 -- | Find the id of an account element in the database

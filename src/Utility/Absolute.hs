@@ -4,7 +4,8 @@ module Utility.Absolute
     , unAbsoluteValue
     ) where
 
--- | Absolute value container for any absolute number, see constructor 'absoluteValue'
+-- | Absolute value container for any absolute number,
+-- | see constructor 'absoluteValue'
 newtype AbsoluteValue a = AbsoluteValue { unAbsoluteValue :: a }
     deriving (Ord, Eq, Show)
 

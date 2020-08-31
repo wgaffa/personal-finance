@@ -39,4 +39,12 @@ final = do
     return Exit
 
 repl :: IO ()
-repl = evalRepl (const $ pure ">>> ") cmd opts (Just ':') (Just "paste") (Word0 completer) ini final
+repl = evalRepl
+    (const $ pure ">>> ")
+    cmd
+    opts
+    (Just ':')
+    (Just "paste")
+    (Word0 completer)
+    ini
+    final

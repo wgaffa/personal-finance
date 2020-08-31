@@ -76,8 +76,10 @@ closeConn conn = putStrLn "Closing connection" >> close conn
 
 createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = Account
-    <$> promptExcept "Number: " (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
-    <*> promptExcept "Name: " (maybeToEither InvalidNumber . accountName . Text.pack)
+    <$> promptExcept "Number: "
+        (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
+    <*> promptExcept "Name: "
+        (maybeToEither InvalidNumber . accountName . Text.pack)
     <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
 
 promptExcept :: String -> (String -> Either e a) -> ExceptT e IO a
