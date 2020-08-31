@@ -66,10 +66,10 @@ createAccount = do
     liftIO $ putStrLn "Attempting to save account"
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
-    result <- lift $ onError (saveAccount acc conn `catchE` (throwE . AccountNotSaved)) (liftIO $ closeConn conn)
-    liftIO $ print result
-    liftIO $ closeConn conn
+    lift $ finally (save acc conn) (liftIO $ closeConn conn)
     return acc
+  where
+      save acc conn = saveAccount acc conn `catchE` (throwE . AccountNotSaved)
 
 closeConn :: Connection -> IO ()
 closeConn conn = putStrLn "Closing connection" >> close conn
