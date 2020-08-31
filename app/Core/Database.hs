@@ -53,12 +53,6 @@ instance FromRow Account where
 instance ToField AccountName where
     toField = toField . unAccountName
 
-instance ToField AccountElement where
-    toField = toField . (+1) . fromEnum
-
-instance ToRow Account where
-    toRow (Account number name element) = toRow (number, name, element)
-
 saveAccount :: Account -> Connection -> ExceptT String IO Account
 saveAccount acc@Account{..} conn =
     checkAccount (unAccountNumber number) conn
