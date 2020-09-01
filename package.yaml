@@ -44,6 +44,7 @@ executables:
     - transformers
     - sqlite-simple
     - exceptions
+    - boxes
 
 tests:
   expense-tracker-test:

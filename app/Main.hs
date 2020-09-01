@@ -65,7 +65,7 @@ showAccounts = do
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
     accounts <- liftIO $ allAccounts conn
-    liftIO $ mapM_ (putStrLn . show) accounts
+    liftIO $ printListAccounts accounts
 
 createAccount :: ReaderT AppEnvironment (ExceptT AccountError IO) Account
 createAccount = do
