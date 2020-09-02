@@ -34,30 +34,27 @@ data AccountError
 
 data AppEnvironment = AppEnvironment
     { connectionString :: String
+    , command :: Command
     } deriving (Show)
 
 type App = ReaderT AppEnvironment (ExceptT AccountError IO)
 
-defaultConfig :: AppEnvironment
-defaultConfig = AppEnvironment
-    { connectionString = "db.sqlite3" }
-
 main :: IO ()
 main = do
     env <- readEnvironment
-    res <- runExceptT (runReaderT createAccount env)
-    case res of
-        Left x -> putStrLn $ "Error: " ++ show x
-        Right x -> putStr "Saved account: "
-            >> printAccount x
-            >> putChar '\n'
-            >> main
+    runner <- runExceptT . flip runReaderT env . dispatcher . command $ env
+    return ()
+
+dispatcher :: Command -> App ()
+dispatcher List = showAccounts
+dispatcher CreateAccount = createAccount
 
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
     (Options {..}) <- execArgParser
-    return defaultConfig {
+    return AppEnvironment {
         connectionString = maybe "db.sqlite3" id dbConnection
+        , command = optCommand
         }
 
 showAccounts :: App ()
@@ -67,13 +64,18 @@ showAccounts = do
     accounts <- liftIO $ allAccounts conn
     liftIO $ printListAccounts accounts
 
-createAccount :: ReaderT AppEnvironment (ExceptT AccountError IO) Account
+createAccount :: App ()
 createAccount = do
     acc <- lift $ createAccountInteractive
     liftIO $ putStrLn "Attempting to save account"
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
-    lift $ finally (save acc conn) (liftIO $ closeConn conn)
+    res <- liftIO . runExceptT $ finally (save acc conn) (liftIO $ closeConn conn)
+    case res of
+        Left x -> liftIO $ putStrLn $ "Error: " ++ show x
+        Right x -> liftIO $ putStr "Saved account: "
+            >> printAccount x
+            >> putChar '\n'
   where
       save acc conn = saveAccount acc conn `catchE` (throwE . AccountNotSaved)
 
