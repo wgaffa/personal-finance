@@ -6,7 +6,6 @@ module Core.PrettyPrint
     , formatColumns
     ) where
 
-import Prelude hiding ((<>))
 import qualified Data.Text as Text
 
 import Data.List (transpose)
