@@ -8,6 +8,8 @@ import System.IO
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
+import Data.Either (isLeft)
+
 import Control.Monad.Catch
 import Control.Monad.Trans.Except
 import Control.Monad.Reader
@@ -43,7 +45,9 @@ main :: IO ()
 main = do
     env <- readEnvironment
     runner <- runExceptT . flip runReaderT env . dispatcher . command $ env
-    return ()
+    either perror (return . id) runner
+  where
+    perror x = putStrLn $ "Error: " ++ show x
 
 dispatcher :: Command -> App ()
 dispatcher List = showAccounts
@@ -70,17 +74,12 @@ createAccount = do
     liftIO $ putStrLn "Attempting to save account"
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
-    res <- liftIO . runExceptT $ finally (save acc conn) (liftIO $ closeConn conn)
-    case res of
-        Left x -> liftIO $ putStrLn $ "Error: " ++ show x
-        Right x -> liftIO $ putStr "Saved account: "
-            >> printAccount x
+    res <- lift $ finally (save acc conn) (liftIO $ close conn)
+    liftIO $ putStr "Saved account: "
+            >> printAccount res
             >> putChar '\n'
   where
       save acc conn = saveAccount acc conn `catchE` (throwE . AccountNotSaved)
-
-closeConn :: Connection -> IO ()
-closeConn conn = putStrLn "Closing connection" >> close conn
 
 createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = Account
