@@ -10,7 +10,7 @@ module Core.Database
 import Control.Monad (when)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.Except
+import Control.Monad.Except
 import Control.Monad.IO.Class (liftIO)
 
 import Database.SQLite.Simple
@@ -20,6 +20,7 @@ import Database.SQLite.Simple.FromField
 
 import qualified Data.Text as Text
 
+import Core.Error
 import Expense.Account
 
 instance ToField AccountNumber where
@@ -53,16 +54,16 @@ instance FromRow Account where
 instance ToField AccountName where
     toField = toField . unAccountName
 
-saveAccount :: Account -> Connection -> ExceptT String IO Account
+saveAccount :: Account -> Connection -> ExceptT AccountError IO Account
 saveAccount acc@Account{..} conn =
     checkAccount (unAccountNumber number) conn
     >> lift (insertAccount acc conn)
     >> ExceptT (return $ Right acc)
 
-checkAccount :: Int -> Connection -> ExceptT String IO ()
+checkAccount :: Int -> Connection -> ExceptT AccountError IO ()
 checkAccount number conn =
     liftIO (accountExists number conn)
-    >>= \x -> when x (throwE "account number already exists")
+    >>= \x -> when x (throwError $ AccountNotSaved "account number already exists")
 
 insertAccount :: Account -> Connection -> IO ()
 insertAccount Account{..} conn =

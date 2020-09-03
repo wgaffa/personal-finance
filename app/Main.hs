@@ -8,10 +8,8 @@ import System.IO
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
-import Data.Either (isLeft)
-
 import Control.Monad.Catch
-import Control.Monad.Trans.Except
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
@@ -26,13 +24,7 @@ import Core.PrettyPrint
 import Expense.Account
 
 import Core.Utils
-
-data AccountError
-    = InvalidName
-    | InvalidNumber
-    | InvalidElement
-    | AccountNotSaved String
-    deriving (Show)
+import Core.Error
 
 data AppEnvironment = AppEnvironment
     { connectionString :: String
@@ -74,12 +66,10 @@ createAccount = do
     liftIO $ putStrLn "Attempting to save account"
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
-    res <- lift $ finally (save acc conn) (liftIO $ close conn)
+    res <- lift $ finally (saveAccount acc conn) (liftIO $ close conn)
     liftIO $ putStr "Saved account: "
             >> printAccount res
             >> putChar '\n'
-  where
-      save acc conn = saveAccount acc conn `catchE` (throwE . AccountNotSaved)
 
 createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = Account
@@ -88,14 +78,3 @@ createAccountInteractive = Account
     <*> promptExcept "Name: "
         (maybeToEither InvalidNumber . accountName . Text.pack)
     <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
-
-promptExcept :: String -> (String -> Either e a) -> ExceptT e IO a
-promptExcept text f =
-    (liftIO . prompt $ text)
-    >>= except . f
-
-prompt :: String -> IO String
-prompt text = do
-    putStr text
-    hFlush stdout
-    getLine
