@@ -16,11 +16,14 @@ import Control.Monad.IO.Class
 
 import Database.SQLite.Simple
 
+import Data.Time
+
 import Repl
 import OptParser
 import Core.Database
 import Core.PrettyPrint
 
+import Expense.Transaction
 import Expense.Account
 
 import Core.Utils
@@ -78,3 +81,21 @@ createAccountInteractive = Account
     <*> promptExcept "Name: "
         (maybeToEither InvalidNumber . accountName . Text.pack)
     <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
+
+createTransactionInteractive ::
+    ExceptT AccountError IO (AccountTransaction Int)
+createTransactionInteractive =
+    AccountTransaction
+    <$> promptExcept "Date: "
+        (maybeToEither ParseError . readMaybe)
+    <*> (createTransactionAmountInteractive
+        >>= return . fmap (truncate . (*100)))
+
+createTransactionAmountInteractive ::
+    ExceptT AccountError IO (TransactionAmount Double)
+createTransactionAmountInteractive =
+    TransactionAmount
+    <$> promptExcept "Debit/Credit: "
+        (maybeToEither InvalidTransactionType . readMaybe)
+    <*> promptExcept "Amount: "
+        (maybeToEither InvalidNumber . readMaybe)

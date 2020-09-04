@@ -23,7 +23,7 @@ import Data.Time (Day)
 
 -- | Different transaction types
 data TransactionType = Debit | Credit
-    deriving (Eq, Enum, Bounded, Show)
+    deriving (Eq, Enum, Bounded, Show, Read)
 
 -- | The actual amount debited or credited
 data TransactionAmount a = TransactionAmount TransactionType a
