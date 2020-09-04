@@ -18,3 +18,4 @@ instance Show AccountError where
     show (AccountNotSaved s) = "could not save account, reason: " ++ s
     show (InvalidTransactionType) = "the type is not valid"
     show (ParseError) = "could not parse input"
+    show (MiscError s) = "error: " ++ s

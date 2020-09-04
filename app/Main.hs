@@ -10,6 +10,7 @@ import Text.Read (readMaybe)
 
 import Control.Monad.Catch
 import Control.Monad.Except
+import Control.Monad.Trans.Maybe
 import Control.Monad.Reader
 import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
@@ -81,6 +82,13 @@ createAccountInteractive = Account
     <*> promptExcept "Name: "
         (maybeToEither InvalidNumber . accountName . Text.pack)
     <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
+
+findAccountInteractive :: Connection -> ExceptT AccountError IO Account
+findAccountInteractive conn =
+    promptExcept "Account number: "
+        (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
+    >>= liftIO . runMaybeT . flip findAccount conn . unAccountNumber
+    >>= liftEither . maybeToEither (MiscError "account not found")
 
 createTransactionInteractive ::
     ExceptT AccountError IO (AccountTransaction Int)
