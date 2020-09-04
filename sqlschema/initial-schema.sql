@@ -1,3 +1,5 @@
+PRAGMA foreign_keys = ON;
+
 CREATE TABLE "AccountElement" (
 	"id"	INTEGER NOT NULL,
 	"name"	TEXT NOT NULL,
