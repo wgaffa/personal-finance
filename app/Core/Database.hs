@@ -6,6 +6,7 @@ module Core.Database
     , saveTransaction
     , findAccount
     , allAccounts
+    , allAccountTransactions
     ) where
 
 import Control.Monad (when)
@@ -20,6 +21,8 @@ import Database.SQLite.Simple.ToField
 import Database.SQLite.Simple.FromField
 
 import qualified Data.Text as Text
+
+import Data.Time
 
 import Core.Error
 import Expense.Transaction
@@ -50,8 +53,20 @@ instance FromField AccountElement where
             (SQLText s) -> Ok . read . Text.unpack $ s
             _ -> returnError ConversionFailed f "need a string"
 
+instance FromField TransactionType where
+    fromField f =
+        case fieldData f of
+            (SQLText s) -> Ok . read . Text.unpack $ s
+            _ -> returnError ConversionFailed f "need a string"
+
 instance FromRow Account where
     fromRow = Account <$> field <*> field <*> field
+
+instance (FromField a) => FromRow (AccountTransaction a) where
+    fromRow = AccountTransaction <$> field <*> fromRow
+
+instance (FromField a) => FromRow (TransactionAmount a) where
+    fromRow = TransactionAmount <$> field <*> field
 
 instance ToField AccountName where
     toField = toField . unAccountName
@@ -75,6 +90,17 @@ saveTransaction Account{..} AccountTransaction{..} conn = do
     transactionTuple = (\(TransactionAmount t a) -> (t, a)) $ amount
     q = "insert into transactions\
         \ (account_id, type_id, date, amount) values (?, ?, ?, ?)"
+
+allAccountTransactions ::
+    Account
+    -> Connection
+    -> IO [AccountTransaction Int]
+allAccountTransactions Account{..} conn =
+    query conn q (Only number) :: IO [AccountTransaction Int]
+  where
+    q = "select t.date, ty.name, t.amount from transactions t \
+        \inner join transactiontypes ty on t.type_id=ty.id \
+        \where account_id=?"
 
 checkAccount :: Int -> Connection -> ExceptT AccountError IO ()
 checkAccount number conn =
