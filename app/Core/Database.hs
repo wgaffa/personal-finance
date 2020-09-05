@@ -74,7 +74,7 @@ saveTransaction Account{..} AccountTransaction{..} conn = do
   where
     transactionTuple = (\(TransactionAmount t a) -> (t, a)) $ amount
     q = "insert into transactions\
-        \ (account_id, type_id, date, amount) values (?, ?, ?)"
+        \ (account_id, type_id, date, amount) values (?, ?, ?, ?)"
 
 checkAccount :: Int -> Connection -> ExceptT AccountError IO ()
 checkAccount number conn =

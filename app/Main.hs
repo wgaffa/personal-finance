@@ -48,6 +48,7 @@ main = do
 dispatcher :: Command -> App ()
 dispatcher List = showAccounts
 dispatcher CreateAccount = createAccount
+dispatcher AddTransaction = addTransaction
 
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
@@ -74,6 +75,16 @@ createAccount = do
     liftIO $ putStr "Saved account: "
             >> printAccount res
             >> putChar '\n'
+
+addTransaction :: App ()
+addTransaction = do
+    cfg <- ask
+    conn <- liftIO . open $ connectionString cfg
+    account <- lift $ findAccountInteractive conn
+    transaction <- lift $ createTransactionInteractive
+    lift $ finally
+        (saveTransaction account transaction conn)
+        (liftIO $ close conn)
 
 createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = Account

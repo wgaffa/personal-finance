@@ -18,6 +18,7 @@ data Options = Options
 data Command
     = List
     | CreateAccount
+    | AddTransaction
     deriving (Show)
 
 connectionOpt :: Parser (Maybe String)
@@ -27,17 +28,20 @@ connectionOpt = optional $ strOption (
 
 commands :: Parser Command
 commands = hsubparser
-    (  listCommand <> createCommand )
+    (  listCommand <> createCommand <> transactionCommand )
   where
     listCommand =
         command
             "list"
-            (info listOptions (progDesc "List accounts"))
+            (info (pure List) (progDesc "List accounts"))
     createCommand =
         command
             "create"
             (info (pure CreateAccount) (progDesc "Create a new account"))
-    listOptions = pure List
+    transactionCommand =
+        command
+            "add"
+            (info (pure AddTransaction) (progDesc "Add a new transaction"))
 
 options :: Parser Options
 options =
