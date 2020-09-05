@@ -45,6 +45,7 @@ executables:
     - sqlite-simple
     - exceptions
     - boxes
+    - gitrev
 
 tests:
   expense-tracker-test:

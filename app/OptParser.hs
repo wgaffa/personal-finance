@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module OptParser
     ( Options(..)
     , Command(..)
@@ -8,6 +10,10 @@ import Control.Applicative
 
 import Options.Applicative
 import Data.Semigroup ((<>))
+
+import Development.GitRev (gitHash)
+import Data.Version (showVersion)
+import Paths_expense_tracker (version)
 
 data Options = Options
     { dbConnection :: Maybe String
@@ -56,4 +62,6 @@ execArgParser = execParser opts
         ( fullDesc
         <> progDesc "Use double bookkeeping to handle your finances"
         <> header "Personal Finance Tracker")
-    versionInfo = infoOption "0.1.0.0" (long "version" <> help "Show version")
+    versionInfo = infoOption
+        (showVersion version <> " " <> $(gitHash))
+        (long "version" <> help "Show version")
