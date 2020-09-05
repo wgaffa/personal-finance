@@ -3,6 +3,7 @@
 module OptParser
     ( Options(..)
     , Command(..)
+    , ShowOptions(..)
     , execArgParser
     ) where
 
@@ -19,13 +20,14 @@ data Options = Options
     { dbConnection :: Maybe String
     , optCommand :: Command
     }
-    deriving (Show)
+
+data ShowOptions = ShowOptions { filterAccount :: Int }
 
 data Command
     = List
     | CreateAccount
     | AddTransaction
-    deriving (Show)
+    | ShowAccount ShowOptions
 
 connectionOpt :: Parser (Maybe String)
 connectionOpt = optional $ strOption (
@@ -34,7 +36,7 @@ connectionOpt = optional $ strOption (
 
 commands :: Parser Command
 commands = hsubparser
-    (  listCommand <> createCommand <> transactionCommand )
+    (  listCommand <> createCommand <> transactionCommand <> showCommand)
   where
     listCommand =
         command
@@ -48,6 +50,18 @@ commands = hsubparser
         command
             "add"
             (info (pure AddTransaction) (progDesc "Add a new transaction"))
+    showCommand =
+        command
+            "show"
+            (info
+                (ShowAccount <$> showOptions)
+                (progDesc "Show transaction for an account")
+            )
+
+showOptions :: Parser ShowOptions
+showOptions =
+    ShowOptions
+    <$> (argument auto (metavar "ACCOUNTID"))
 
 options :: Parser Options
 options =

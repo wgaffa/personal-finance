@@ -33,7 +33,7 @@ import Core.Error
 data AppEnvironment = AppEnvironment
     { connectionString :: String
     , command :: Command
-    } deriving (Show)
+    }
 
 type App = ReaderT AppEnvironment (ExceptT AccountError IO)
 
@@ -49,6 +49,7 @@ dispatcher :: Command -> App ()
 dispatcher List = showAccounts
 dispatcher CreateAccount = createAccount
 dispatcher AddTransaction = addTransaction
+dispatcher (ShowAccount n) = showTransactions n
 
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
@@ -64,6 +65,20 @@ showAccounts = do
     conn <- liftIO . open $ connectionString cfg
     accounts <- liftIO $ allAccounts conn
     liftIO $ printListAccounts accounts
+
+showTransactions :: ShowOptions -> App ()
+showTransactions ShowOptions{..} = do
+    cfg <- ask
+    transactions <- liftIO $ bracket
+        (open $ connectionString cfg)
+        (close)
+        (\conn -> do
+            account <- runMaybeT $ findAccount filterAccount conn
+            case account of
+                Just x -> allAccountTransactions x conn
+                Nothing -> pure []
+        )
+    liftIO $ printTransactions transactions
 
 createAccount :: App ()
 createAccount = do

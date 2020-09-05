@@ -3,6 +3,7 @@
 module Core.PrettyPrint
     ( printAccount
     , printListAccounts
+    , printTransactions
     , formatColumns
     ) where
 
@@ -12,6 +13,7 @@ import Data.List (transpose)
 
 import Text.PrettyPrint.Boxes
 
+import Expense.Transaction
 import Expense.Account
 
 formatColumns :: [Text.Text] -> Box
@@ -42,8 +44,25 @@ printListAccounts =
     . transpose
     . map accountRow
 
+printTransactions :: (Integral a) => [AccountTransaction a] -> IO ()
+printTransactions =
+    printBox
+    . hcat top
+    . map formatColumns
+    . transpose
+    . map transactionRow
+
+transactionRow :: (Integral a) => AccountTransaction a -> [Text.Text]
+transactionRow AccountTransaction{..} =
+    [Text.pack $ show date] ++ transactionAmountRow amount
+
+transactionAmountRow :: (Integral a) => TransactionAmount a -> [Text.Text]
+transactionAmountRow (TransactionAmount t a) =
+    [ Text.pack $ show t
+    , Text.pack . show . (/100) . fromIntegral $ a]
+
 accountRow :: Account -> [Text.Text]
 accountRow Account{..} =
-        [ Text.pack . show $ unAccountNumber number
-        , unAccountName name
-        , Text.pack $ show element]
+    [ Text.pack . show $ unAccountNumber number
+    , unAccountName name
+    , Text.pack $ show element]
