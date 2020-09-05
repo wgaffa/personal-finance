@@ -3,6 +3,7 @@
 
 module Core.Database
     ( saveAccount
+    , saveTransaction
     , findAccount
     , allAccounts
     ) where
@@ -21,6 +22,7 @@ import Database.SQLite.Simple.FromField
 import qualified Data.Text as Text
 
 import Core.Error
+import Expense.Transaction
 import Expense.Account
 
 instance ToField AccountNumber where
@@ -59,6 +61,20 @@ saveAccount acc@Account{..} conn =
     checkAccount (unAccountNumber number) conn
     >> lift (insertAccount acc conn)
     >> ExceptT (return $ Right acc)
+
+saveTransaction ::
+    Account
+    -> AccountTransaction Int
+    -> Connection
+    -> ExceptT AccountError IO ()
+saveTransaction Account{..} AccountTransaction{..} conn = do
+    typeId <- liftIO $ runMaybeT $
+        transactionTypeId (fst $ transactionTuple) conn
+    liftIO $ execute conn q (number, typeId, date, snd transactionTuple)
+  where
+    transactionTuple = (\(TransactionAmount t a) -> (t, a)) $ amount
+    q = "insert into transactions\
+        \ (account_id, type_id, date, amount) values (?, ?, ?)"
 
 checkAccount :: Int -> Connection -> ExceptT AccountError IO ()
 checkAccount number conn =
@@ -102,3 +118,12 @@ elementId element conn = do
         (x:_) -> return . fromOnly $ x
         _ -> MaybeT . return $ Nothing
   where q = "select id from AccountElement where name=?"
+
+transactionTypeId :: TransactionType -> Connection -> MaybeT IO Int
+transactionTypeId transaction conn = do
+    r <- liftIO $ query conn q (Only (show transaction))
+    case r of
+        (x:_) -> return . fromOnly $ x
+        _ -> MaybeT . return $ Nothing
+  where
+    q = "select id from TransactionTypes where name=?"
