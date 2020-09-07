@@ -50,6 +50,7 @@ dispatcher List = showAccounts
 dispatcher CreateAccount = createAccount
 dispatcher AddTransaction = addTransaction
 dispatcher (ShowAccount n) = showTransactions n
+dispatcher UpdateDatabase = updateDb
 
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
@@ -58,6 +59,15 @@ readEnvironment = do
         connectionString = maybe "db.sqlite3" id dbConnection
         , command = optCommand
         }
+
+updateDb :: App ()
+updateDb = do
+    cfg <- ask
+    liftIO $ bracket
+        (open $ connectionString cfg)
+        (close)
+        (updateDatabase)
+    liftIO $ putStrLn "Database updated"
 
 showAccounts :: App ()
 showAccounts = do

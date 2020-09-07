@@ -28,6 +28,7 @@ data Command
     | CreateAccount
     | AddTransaction
     | ShowAccount ShowOptions
+    | UpdateDatabase
 
 connectionOpt :: Parser (Maybe String)
 connectionOpt = optional $ strOption (
@@ -36,7 +37,9 @@ connectionOpt = optional $ strOption (
 
 commands :: Parser Command
 commands = hsubparser
-    (  listCommand <> createCommand <> transactionCommand <> showCommand)
+    (  listCommand <> createCommand
+        <> transactionCommand <> showCommand
+        <> updateCommand )
   where
     listCommand =
         command
@@ -57,6 +60,12 @@ commands = hsubparser
                 (ShowAccount <$> showOptions)
                 (progDesc "Show transaction for an account")
             )
+    updateCommand =
+        command
+            "update-db"
+            (info
+                (pure UpdateDatabase)
+                (progDesc "Update the database to latest version"))
 
 showOptions :: Parser ShowOptions
 showOptions =
