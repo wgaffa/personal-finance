@@ -1,6 +1,6 @@
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE "AccountElement" (
+CREATE TABLE IF NOT EXISTS "AccountElement" (
 	"id"	INTEGER NOT NULL,
 	"name"	TEXT NOT NULL,
 	PRIMARY KEY("id")

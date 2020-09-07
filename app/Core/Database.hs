@@ -7,6 +7,11 @@ module Core.Database
     , findAccount
     , allAccounts
     , allAccountTransactions
+    , initDatabase
+    , runVersion
+    , schema
+    , createMetaTable
+    , schemaVersion
     ) where
 
 import Control.Monad (when)
@@ -70,6 +75,9 @@ instance (FromField a) => FromRow (TransactionAmount a) where
 
 instance ToField AccountName where
     toField = toField . unAccountName
+
+instance ToField AccountElement where
+    toField = toField . show
 
 saveAccount :: Account -> Connection -> ExceptT AccountError IO Account
 saveAccount acc@Account{..} conn =
@@ -153,3 +161,58 @@ transactionTypeId transaction conn = do
         _ -> MaybeT . return $ Nothing
   where
     q = "select id from TransactionTypes where name=?"
+
+updateDatabase :: Connection -> IO ()
+updateDatabase conn = do
+    ts <- tables conn
+    unless ("meta_schema" `elem` ts) $ createMetaTable conn
+    v <- schemaVersion conn
+    let updates = drop v schema
+        funcs = zipWith (\fs v -> runVersion v fs) updates [v+1 ..]
+        in mapM_ ($ conn) funcs
+
+runVersion :: Int -> [Connection -> IO ()] -> Connection -> IO ()
+runVersion version xs conn = withTransaction conn $
+    mapM_ (\f -> f conn) xs
+    >> updateVersion version conn
+
+createMetaTable :: Connection -> IO ()
+createMetaTable conn = execute_ conn q >> execute_ conn val
+  where
+    q = "create table meta_schema (id integer primary key, \
+        \version integer not null)"
+    val = "insert into meta_schema values (1, 0)"
+
+updateVersion :: Int -> Connection -> IO ()
+updateVersion version conn = execute conn q (Only version)
+  where
+    q = "update meta_schema set version=? where id=1"
+
+schemaVersion :: Connection -> IO Int
+schemaVersion conn = query_ conn q >>= pure . fromOnly . firstItem
+  where
+    q = "select version from meta_schema where id=1"
+    firstItem [] = error "Database is in an invalid state"
+    firstItem (x:_) = x
+
+tables :: Connection -> IO [String]
+tables conn = query_ conn q >>= pure . map fromOnly
+  where
+    q = "select name from sqlite_master where type='table' \
+        \and name not like 'sqlite%'"
+
+schema :: [[Connection -> IO ()]]
+schema =
+    [[
+      flip execute_ "PRAGMA foreign_keys = ON"
+    , flip execute_ "CREATE TABLE AccountElement (\
+        \ id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
+    , flip execute_ "CREATE TABLE Accounts (\
+        \id INTEGER PRIMARY KEY,\
+        \name TEXT NOT NULL,\
+        \element_id INTEGER NOT NULL,\
+        \FOREIGN KEY(element_id) REFERENCES AccountElement (id))"
+    , \conn -> executeMany conn
+        "INSERT INTO AccountElement (name) VALUES (?)"
+        (map (Only . show) [Asset .. Expenses])
+    ]]
