@@ -8,10 +8,6 @@ module Core.Database
     , allAccounts
     , allAccountTransactions
     , updateDatabase
-    , runVersion
-    , schema
-    , createMetaTable
-    , schemaVersion
     ) where
 
 import Control.Monad (when)
