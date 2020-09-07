@@ -7,7 +7,7 @@ module Core.Database
     , findAccount
     , allAccounts
     , allAccountTransactions
-    , initDatabase
+    , updateDatabase
     , runVersion
     , schema
     , createMetaTable
@@ -215,4 +215,19 @@ schema =
     , \conn -> executeMany conn
         "INSERT INTO AccountElement (name) VALUES (?)"
         (map (Only . show) [Asset .. Expenses])
+    ]
+    , [
+      flip execute_ "CREATE TABLE TransactionTypes (\
+        \id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
+    , \conn -> executeMany conn
+        "INSERT INTO TransactionTypes (name) VALUES (?)"
+        (map (Only . show) [Debit .. Credit])
+    , flip execute_ "CREATE TABLE Transactions (\
+        \id INTEGER PRIMARY KEY,\
+        \date DATE NOT NULL,\
+        \account_id INTEGER NOT NULL,\
+        \type_id INTEGER NOT NULL,\
+        \amount INTEGER NOT NULL,\
+        \ FOREIGN KEY (account_id) REFERENCES accounts (id) \
+        \ FOREIGN KEY (type_id) REFERENCES transactiontypes (id))"
     ]]
