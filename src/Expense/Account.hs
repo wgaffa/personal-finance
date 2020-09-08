@@ -86,6 +86,7 @@ instance Accountable AccountElement where
 -- | Account specific transaction that goes in to a ledger
 data AccountTransaction a = AccountTransaction {
     date :: Day -- ^ Date of the transaction
+    , description :: Maybe String -- ^ Description for the transaction
     , amount :: TransactionAmount a -- ^ Amount debited or credited
 } deriving (Show)
 

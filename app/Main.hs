@@ -5,6 +5,7 @@ module Main where
 
 import System.IO
 
+import Data.Char
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
@@ -132,8 +133,14 @@ createTransactionInteractive =
     AccountTransaction
     <$> promptExcept "Date: "
         (maybeToEither ParseError . readMaybe)
+    <*> promptExcept "Description: "
+        (pure . emptyString)
     <*> (createTransactionAmountInteractive
         >>= return . fmap (truncate . (*100)))
+  where
+    emptyString xs
+        | all isSpace xs = Nothing
+        | otherwise = Just xs
 
 createTransactionAmountInteractive ::
     ExceptT AccountError IO (TransactionAmount Double)

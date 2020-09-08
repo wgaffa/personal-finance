@@ -64,7 +64,7 @@ instance FromRow Account where
     fromRow = Account <$> field <*> field <*> field
 
 instance (FromField a) => FromRow (AccountTransaction a) where
-    fromRow = AccountTransaction <$> field <*> fromRow
+    fromRow = AccountTransaction <$> field <*> field <*> fromRow
 
 instance (FromField a) => FromRow (TransactionAmount a) where
     fromRow = TransactionAmount <$> field <*> field
@@ -89,11 +89,15 @@ saveTransaction ::
 saveTransaction Account{..} AccountTransaction{..} conn = do
     typeId <- liftIO $ runMaybeT $
         transactionTypeId (fst $ transactionTuple) conn
-    liftIO $ execute conn q (number, typeId, date, snd transactionTuple)
+    liftIO $ execute conn q
+        (number,
+        maybe Text.empty Text.pack description,
+        typeId, date, snd transactionTuple)
   where
     transactionTuple = (\(TransactionAmount t a) -> (t, a)) $ amount
     q = "insert into transactions\
-        \ (account_id, type_id, date, amount) values (?, ?, ?, ?)"
+        \ (account_id, description, type_id, date, amount)\
+        \ values (?, ?, ?, ?, ?)"
 
 allAccountTransactions ::
     Account
@@ -102,7 +106,7 @@ allAccountTransactions ::
 allAccountTransactions Account{..} conn =
     query conn q (Only number) :: IO [AccountTransaction Int]
   where
-    q = "select t.date, ty.name, t.amount from transactions t \
+    q = "select t.date, t.description, ty.name, t.amount from transactions t \
         \inner join transactiontypes ty on t.type_id=ty.id \
         \where account_id=?"
 
@@ -226,4 +230,7 @@ schema =
         \amount INTEGER NOT NULL,\
         \ FOREIGN KEY (account_id) REFERENCES accounts (id) \
         \ FOREIGN KEY (type_id) REFERENCES transactiontypes (id))"
+    ]
+    , [
+        flip execute_ "ALTER TABLE Transactions ADD description TEXT"
     ]]

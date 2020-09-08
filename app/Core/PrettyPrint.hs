@@ -54,7 +54,9 @@ printTransactions =
 
 transactionRow :: (Integral a) => AccountTransaction a -> [Text.Text]
 transactionRow AccountTransaction{..} =
-    [Text.pack $ show date] ++ transactionAmountRow amount
+    [Text.pack $ show date]
+        ++ transactionAmountRow amount
+        ++ [maybe Text.empty Text.pack description]
 
 transactionAmountRow :: (Integral a) => TransactionAmount a -> [Text.Text]
 transactionAmountRow (TransactionAmount t a) =
