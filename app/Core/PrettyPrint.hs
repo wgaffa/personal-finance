@@ -11,6 +11,7 @@ import qualified Data.Text as Text
 
 import Data.List (transpose)
 
+import Text.Printf
 import Text.PrettyPrint.Boxes
 
 import Expense.Transaction
@@ -61,7 +62,7 @@ transactionRow AccountTransaction{..} =
 transactionAmountRow :: (Integral a) => TransactionAmount a -> [Text.Text]
 transactionAmountRow (TransactionAmount t a) =
     [ Text.pack $ show t
-    , Text.pack . show . (/100) . fromIntegral $ a]
+    , Text.pack $ printf "%.2f" (fromIntegral a / 100 :: Double)]
 
 accountRow :: Account -> [Text.Text]
 accountRow Account{..} =
