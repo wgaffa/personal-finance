@@ -1,12 +1,14 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Core.PrettyPrint
     ( printAccount
     , printListAccounts
-    , printTransactions
+    , printLedger
     , formatColumns
     ) where
 
+import Prelude hiding ((<>))
 import qualified Data.Text as Text
 
 import Data.List (transpose)
@@ -22,7 +24,7 @@ formatColumns items =
     vcat left
     . map (text . Text.unpack . Text.justifyLeft width ' ') $ items
   where
-    width = (+2) . maximum $ map Text.length items
+    width = maximum $ map Text.length items
 
 boxAccount :: Account -> Box
 boxAccount (Account number name element) =
@@ -40,18 +42,28 @@ printAccount = printBox . boxAccount
 printListAccounts :: [Account] -> IO ()
 printListAccounts =
     printBox
-    . hcat top
+    . hsep 2 top
     . map formatColumns
     . transpose
     . map accountRow
 
-printTransactions :: (Integral a) => [AccountTransaction a] -> IO ()
-printTransactions =
-    printBox
-    . hcat top
-    . map formatColumns
-    . transpose
-    . map transactionRow
+printLedger :: (Integral a) => Ledger a -> IO ()
+printLedger = printBox . renderLedger
+
+renderLedger :: (Integral a) => Ledger a -> Box
+renderLedger (Ledger account transactions) =
+    title // separator // body
+  where
+    body =
+        hsep 2 top
+        . map formatColumns
+        . transpose
+        . (++) [headers]
+        . map transactionRow $ transactions
+    title = alignHoriz center2 width (boxAccount account)
+    separator = text $ replicate width '-'
+    headers = ["Date", "Debit/Credit", "Amount", "Description"]
+    width = cols body
 
 transactionRow :: (Integral a) => AccountTransaction a -> [Text.Text]
 transactionRow AccountTransaction{..} =

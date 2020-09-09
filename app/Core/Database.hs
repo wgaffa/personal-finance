@@ -100,11 +100,12 @@ saveTransaction Account{..} AccountTransaction{..} conn = do
         \ values (?, ?, ?, ?, ?)"
 
 allAccountTransactions ::
+    (FromField a) =>
     Account
     -> Connection
-    -> IO [AccountTransaction Int]
+    -> IO [AccountTransaction a]
 allAccountTransactions Account{..} conn =
-    query conn q (Only number) :: IO [AccountTransaction Int]
+    query conn q (Only number)
   where
     q = "select t.date, t.description, ty.name, t.amount from transactions t \
         \inner join transactiontypes ty on t.type_id=ty.id \

@@ -30,6 +30,7 @@ import Expense.Account
 
 import Core.Utils
 import Core.Error
+import Utility.Absolute
 
 data AppEnvironment = AppEnvironment
     { connectionString :: String
@@ -80,16 +81,26 @@ showAccounts = do
 showTransactions :: ShowOptions -> App ()
 showTransactions ShowOptions{..} = do
     cfg <- ask
-    transactions <- liftIO $ bracket
+    ledger <- liftIO $ bracket
         (open $ connectionString cfg)
         (close)
         (\conn -> do
             account <- runMaybeT $ findAccount filterAccount conn
             case account of
-                Just x -> allAccountTransactions x conn
-                Nothing -> pure []
+                Just x ->
+                    (allAccountTransactions x conn
+                        :: IO [AccountTransaction (AbsoluteValue Int)])
+                    >>= pure . Just . Ledger x
+                Nothing -> pure Nothing
         )
-    liftIO $ printTransactions transactions
+    case ledger of
+        Just x -> liftIO $ printLedger $ transformLedger x
+        Nothing -> return ()
+  where
+    transformLedger (Ledger account ts) =
+        Ledger account
+        $ map (\x@AccountTransaction{..} ->
+             x{amount = fmap unAbsoluteValue amount}) ts
 
 createAccount :: App ()
 createAccount = do
