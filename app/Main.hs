@@ -133,7 +133,7 @@ createAccountInteractive = Account
     <$> promptExcept "Number: "
         (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
     <*> promptExcept "Name: "
-        (maybeToEither InvalidNumber . accountName . Text.pack)
+        (maybeToEither InvalidName . accountName . Text.pack)
     <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
 
 findAccountInteractive :: Connection -> ExceptT AccountError IO Account
