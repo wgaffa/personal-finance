@@ -77,7 +77,7 @@ instance ToField AccountElement where
 
 saveAccount :: Account -> Connection -> ExceptT AccountError IO Account
 saveAccount acc@Account{..} conn =
-    checkAccount (unAccountNumber number) conn
+    checkAccount number conn
     >> lift (insertAccount acc conn)
     >> ExceptT (return $ Right acc)
 
@@ -111,7 +111,7 @@ allAccountTransactions Account{..} conn =
         \inner join transactiontypes ty on t.type_id=ty.id \
         \where account_id=?"
 
-checkAccount :: Int -> Connection -> ExceptT AccountError IO ()
+checkAccount :: AccountNumber -> Connection -> ExceptT AccountError IO ()
 checkAccount number conn =
     liftIO (accountExists number conn)
     >>= \x -> when x (throwError $ AccountNotSaved "account number already exists")
@@ -123,7 +123,7 @@ insertAccount Account{..} conn =
   where
     q = "insert into Accounts (id, name, element_id) values (?, ?, ?)"
 
-accountExists :: Int -> Connection -> IO Bool
+accountExists :: AccountNumber -> Connection -> IO Bool
 accountExists number conn =
     runMaybeT (findAccount number conn)
     >>= return . maybe False (const True)
@@ -134,7 +134,7 @@ allAccounts conn = query_ conn q
     \inner join accountelement e on a.element_id=e.id \
     \order by a.id"
 
-findAccount :: Int -> Connection -> MaybeT IO Account
+findAccount :: AccountNumber -> Connection -> MaybeT IO Account
 findAccount number conn = do
     res <- liftIO $ (query conn q params :: IO [Account])
     case res of

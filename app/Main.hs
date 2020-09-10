@@ -79,23 +79,11 @@ showAccounts = do
     liftIO $ printListAccounts accounts
 
 showTransactions :: ShowOptions -> App ()
-showTransactions ShowOptions{..} = do
-    cfg <- ask
-    ledger <- liftIO $ bracket
-        (open $ connectionString cfg)
-        (close)
-        (\conn -> do
-            account <- runMaybeT $ findAccount filterAccount conn
-            case account of
-                Just x ->
-                    (allAccountTransactions x conn
-                        :: IO [AccountTransaction (AbsoluteValue Int)])
-                    >>= pure . Just . Ledger x
-                Nothing -> pure Nothing
-        )
-    case ledger of
-        Just x -> liftIO $ printLedger $ transformLedger x
-        Nothing -> return ()
+showTransactions ShowOptions{..} =
+    (liftEither . maybeToEither InvalidNumber . accountNumber $ filterAccount)
+    >>= findLedger
+    >>= pure . transformLedger
+    >>= liftIO . printLedger
   where
     transformLedger (Ledger account ts) =
         Ledger account
@@ -123,6 +111,22 @@ addTransaction = do
         (saveTransaction account transaction conn)
         (liftIO $ close conn)
 
+findLedger :: AccountNumber -> App (Ledger (AbsoluteValue Int))
+findLedger number = do
+    cfg <- ask
+    ledger <- liftIO $ bracket
+        (open $ connectionString cfg)
+        (close)
+        (\conn -> do
+            account <- runMaybeT $ findAccount number conn
+            case account of
+                Just x ->
+                    (allAccountTransactions x conn)
+                    >>= pure . Right . Ledger x
+                Nothing -> pure . Left $ MiscError "undefined"
+        )
+    liftEither ledger
+
 createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = Account
     <$> promptExcept "Number: "
@@ -135,7 +139,7 @@ findAccountInteractive :: Connection -> ExceptT AccountError IO Account
 findAccountInteractive conn =
     promptExcept "Account number: "
         (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
-    >>= liftIO . runMaybeT . flip findAccount conn . unAccountNumber
+    >>= liftIO . runMaybeT . flip findAccount conn
     >>= liftEither . maybeToEither (MiscError "account not found")
 
 createTransactionInteractive ::
