@@ -124,7 +124,7 @@ findLedger number = do
                 Just x ->
                     (allAccountTransactions x conn)
                     >>= pure . Right . Ledger x
-                Nothing -> pure . Left $ MiscError "undefined"
+                Nothing -> pure . Left $ AccountNotFound
         )
     liftEither ledger
 
