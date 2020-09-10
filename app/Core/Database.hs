@@ -109,7 +109,7 @@ allAccountTransactions Account{..} conn =
   where
     q = "select t.date, t.description, ty.name, t.amount from transactions t \
         \inner join transactiontypes ty on t.type_id=ty.id \
-        \where account_id=?"
+        \where account_id=? order by t.date"
 
 checkAccount :: AccountNumber -> Connection -> ExceptT AccountError IO ()
 checkAccount number conn =
