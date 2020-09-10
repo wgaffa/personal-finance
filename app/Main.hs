@@ -5,6 +5,7 @@ module Main where
 
 import System.IO
 
+import Data.Char
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
@@ -16,6 +17,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 
 import Database.SQLite.Simple
+import Database.SQLite.Simple.FromField
 
 import Data.Time
 
@@ -29,6 +31,7 @@ import Expense.Account
 
 import Core.Utils
 import Core.Error
+import Utility.Absolute
 
 data AppEnvironment = AppEnvironment
     { connectionString :: String
@@ -50,6 +53,7 @@ dispatcher List = showAccounts
 dispatcher CreateAccount = createAccount
 dispatcher AddTransaction = addTransaction
 dispatcher (ShowAccount n) = showTransactions n
+dispatcher UpdateDatabase = updateDb
 
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
@@ -59,6 +63,15 @@ readEnvironment = do
         , command = optCommand
         }
 
+updateDb :: App ()
+updateDb = do
+    cfg <- ask
+    liftIO $ bracket
+        (open $ connectionString cfg)
+        (close)
+        (updateDatabase)
+    liftIO $ putStrLn "Database updated"
+
 showAccounts :: App ()
 showAccounts = do
     cfg <- ask
@@ -67,18 +80,11 @@ showAccounts = do
     liftIO $ printListAccounts accounts
 
 showTransactions :: ShowOptions -> App ()
-showTransactions ShowOptions{..} = do
-    cfg <- ask
-    transactions <- liftIO $ bracket
-        (open $ connectionString cfg)
-        (close)
-        (\conn -> do
-            account <- runMaybeT $ findAccount filterAccount conn
-            case account of
-                Just x -> allAccountTransactions x conn
-                Nothing -> pure []
-        )
-    liftIO $ printTransactions transactions
+showTransactions ShowOptions{..} =
+    (liftEither . maybeToEither InvalidNumber . accountNumber $ filterAccount)
+    >>= findLedger
+    >>= pure . fmap unAbsoluteValue
+    >>= liftIO . printLedger
 
 createAccount :: App ()
 createAccount = do
@@ -101,19 +107,35 @@ addTransaction = do
         (saveTransaction account transaction conn)
         (liftIO $ close conn)
 
+findLedger :: (FromField a) => AccountNumber -> App (Ledger a)
+findLedger number = do
+    cfg <- ask
+    ledger <- liftIO $ bracket
+        (open $ connectionString cfg)
+        (close)
+        (\conn -> do
+            account <- runMaybeT $ findAccount number conn
+            case account of
+                Just x ->
+                    (allAccountTransactions x conn)
+                    >>= pure . Right . Ledger x
+                Nothing -> pure . Left $ AccountNotFound
+        )
+    liftEither ledger
+
 createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = Account
     <$> promptExcept "Number: "
         (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
     <*> promptExcept "Name: "
-        (maybeToEither InvalidNumber . accountName . Text.pack)
+        (maybeToEither InvalidName . accountName . Text.pack)
     <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
 
 findAccountInteractive :: Connection -> ExceptT AccountError IO Account
 findAccountInteractive conn =
     promptExcept "Account number: "
         (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
-    >>= liftIO . runMaybeT . flip findAccount conn . unAccountNumber
+    >>= liftIO . runMaybeT . flip findAccount conn
     >>= liftEither . maybeToEither (MiscError "account not found")
 
 createTransactionInteractive ::
@@ -122,8 +144,14 @@ createTransactionInteractive =
     AccountTransaction
     <$> promptExcept "Date: "
         (maybeToEither ParseError . readMaybe)
+    <*> promptExcept "Description: "
+        (pure . emptyString)
     <*> (createTransactionAmountInteractive
         >>= return . fmap (truncate . (*100)))
+  where
+    emptyString xs
+        | all isSpace xs = Nothing
+        | otherwise = Just xs
 
 createTransactionAmountInteractive ::
     ExceptT AccountError IO (TransactionAmount Double)

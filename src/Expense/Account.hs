@@ -5,6 +5,7 @@ module Expense.Account
     , AccountName()
     , AccountNumber()
     , AccountTransaction(..)
+    , accountBalance
     , accountName
     , accountNumber
     , emptyAccountNumber
@@ -25,6 +26,9 @@ import Expense.Transaction
 
 data Ledger a = Ledger Account [AccountTransaction a]
     deriving(Show)
+
+instance Functor Ledger where
+    fmap f x@(Ledger a ts) = Ledger a $ map (fmap f) ts
 
 -- | All different account elements (types)
 data AccountElement = Asset | Liability | Equity | Income | Expenses
@@ -86,11 +90,23 @@ instance Accountable AccountElement where
 -- | Account specific transaction that goes in to a ledger
 data AccountTransaction a = AccountTransaction {
     date :: Day -- ^ Date of the transaction
+    , description :: Maybe String -- ^ Description for the transaction
     , amount :: TransactionAmount a -- ^ Amount debited or credited
 } deriving (Show)
+
+instance Functor AccountTransaction where
+    fmap f t = t{amount = fmap f (amount t)}
 
 ledgerTransaction :: AccountTransaction a -> Ledger a -> Ledger a
 ledgerTransaction transaction (Ledger account transactions) =
     Ledger account appendTransaction
   where
     appendTransaction = transactions ++ [transaction]
+
+accountBalance :: (Num a) => Ledger a -> TransactionAmount a
+accountBalance (Ledger acc ts) =
+    flip TransactionAmount (balance ts)
+    . transactionType
+    . element $ acc
+  where
+    balance = foldr ((+) . toNumeral . amount) 0

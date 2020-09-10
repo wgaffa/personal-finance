@@ -7,6 +7,7 @@ module Core.Database
     , findAccount
     , allAccounts
     , allAccountTransactions
+    , updateDatabase
     ) where
 
 import Control.Monad (when)
@@ -63,7 +64,7 @@ instance FromRow Account where
     fromRow = Account <$> field <*> field <*> field
 
 instance (FromField a) => FromRow (AccountTransaction a) where
-    fromRow = AccountTransaction <$> field <*> fromRow
+    fromRow = AccountTransaction <$> field <*> field <*> fromRow
 
 instance (FromField a) => FromRow (TransactionAmount a) where
     fromRow = TransactionAmount <$> field <*> field
@@ -71,9 +72,12 @@ instance (FromField a) => FromRow (TransactionAmount a) where
 instance ToField AccountName where
     toField = toField . unAccountName
 
+instance ToField AccountElement where
+    toField = toField . show
+
 saveAccount :: Account -> Connection -> ExceptT AccountError IO Account
 saveAccount acc@Account{..} conn =
-    checkAccount (unAccountNumber number) conn
+    checkAccount number conn
     >> lift (insertAccount acc conn)
     >> ExceptT (return $ Right acc)
 
@@ -85,24 +89,29 @@ saveTransaction ::
 saveTransaction Account{..} AccountTransaction{..} conn = do
     typeId <- liftIO $ runMaybeT $
         transactionTypeId (fst $ transactionTuple) conn
-    liftIO $ execute conn q (number, typeId, date, snd transactionTuple)
+    liftIO $ execute conn q
+        (number,
+        maybe Text.empty Text.pack description,
+        typeId, date, snd transactionTuple)
   where
     transactionTuple = (\(TransactionAmount t a) -> (t, a)) $ amount
     q = "insert into transactions\
-        \ (account_id, type_id, date, amount) values (?, ?, ?, ?)"
+        \ (account_id, description, type_id, date, amount)\
+        \ values (?, ?, ?, ?, ?)"
 
 allAccountTransactions ::
+    (FromField a) =>
     Account
     -> Connection
-    -> IO [AccountTransaction Int]
+    -> IO [AccountTransaction a]
 allAccountTransactions Account{..} conn =
-    query conn q (Only number) :: IO [AccountTransaction Int]
+    query conn q (Only number)
   where
-    q = "select t.date, ty.name, t.amount from transactions t \
+    q = "select t.date, t.description, ty.name, t.amount from transactions t \
         \inner join transactiontypes ty on t.type_id=ty.id \
-        \where account_id=?"
+        \where account_id=? order by t.date"
 
-checkAccount :: Int -> Connection -> ExceptT AccountError IO ()
+checkAccount :: AccountNumber -> Connection -> ExceptT AccountError IO ()
 checkAccount number conn =
     liftIO (accountExists number conn)
     >>= \x -> when x (throwError $ AccountNotSaved "account number already exists")
@@ -114,7 +123,7 @@ insertAccount Account{..} conn =
   where
     q = "insert into Accounts (id, name, element_id) values (?, ?, ?)"
 
-accountExists :: Int -> Connection -> IO Bool
+accountExists :: AccountNumber -> Connection -> IO Bool
 accountExists number conn =
     runMaybeT (findAccount number conn)
     >>= return . maybe False (const True)
@@ -125,7 +134,7 @@ allAccounts conn = query_ conn q
     \inner join accountelement e on a.element_id=e.id \
     \order by a.id"
 
-findAccount :: Int -> Connection -> MaybeT IO Account
+findAccount :: AccountNumber -> Connection -> MaybeT IO Account
 findAccount number conn = do
     res <- liftIO $ (query conn q params :: IO [Account])
     case res of
@@ -153,3 +162,76 @@ transactionTypeId transaction conn = do
         _ -> MaybeT . return $ Nothing
   where
     q = "select id from TransactionTypes where name=?"
+
+updateDatabase :: Connection -> IO ()
+updateDatabase conn = do
+    ts <- tables conn
+    unless ("meta_schema" `elem` ts) $ createMetaTable conn
+    v <- schemaVersion conn
+    let updates = drop v schema
+        funcs = zipWith (\fs v -> runVersion v fs) updates [v+1 ..]
+        in mapM_ ($ conn) funcs
+
+runVersion :: Int -> [Connection -> IO ()] -> Connection -> IO ()
+runVersion version xs conn = withTransaction conn $
+    mapM_ (\f -> f conn) xs
+    >> updateVersion version conn
+
+createMetaTable :: Connection -> IO ()
+createMetaTable conn = execute_ conn q >> execute_ conn val
+  where
+    q = "create table meta_schema (id integer primary key, \
+        \version integer not null)"
+    val = "insert into meta_schema values (1, 0)"
+
+updateVersion :: Int -> Connection -> IO ()
+updateVersion version conn = execute conn q (Only version)
+  where
+    q = "update meta_schema set version=? where id=1"
+
+schemaVersion :: Connection -> IO Int
+schemaVersion conn = query_ conn q >>= pure . fromOnly . firstItem
+  where
+    q = "select version from meta_schema where id=1"
+    firstItem [] = error "Database is in an invalid state"
+    firstItem (x:_) = x
+
+tables :: Connection -> IO [String]
+tables conn = query_ conn q >>= pure . map fromOnly
+  where
+    q = "select name from sqlite_master where type='table' \
+        \and name not like 'sqlite%'"
+
+schema :: [[Connection -> IO ()]]
+schema =
+    [[
+      flip execute_ "PRAGMA foreign_keys = ON"
+    , flip execute_ "CREATE TABLE AccountElement (\
+        \ id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
+    , flip execute_ "CREATE TABLE Accounts (\
+        \id INTEGER PRIMARY KEY,\
+        \name TEXT NOT NULL,\
+        \element_id INTEGER NOT NULL,\
+        \FOREIGN KEY(element_id) REFERENCES AccountElement (id))"
+    , \conn -> executeMany conn
+        "INSERT INTO AccountElement (name) VALUES (?)"
+        (map (Only . show) [Asset .. Expenses])
+    ]
+    , [
+      flip execute_ "CREATE TABLE TransactionTypes (\
+        \id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
+    , \conn -> executeMany conn
+        "INSERT INTO TransactionTypes (name) VALUES (?)"
+        (map (Only . show) [Debit .. Credit])
+    , flip execute_ "CREATE TABLE Transactions (\
+        \id INTEGER PRIMARY KEY,\
+        \date DATE NOT NULL,\
+        \account_id INTEGER NOT NULL,\
+        \type_id INTEGER NOT NULL,\
+        \amount INTEGER NOT NULL,\
+        \ FOREIGN KEY (account_id) REFERENCES accounts (id) \
+        \ FOREIGN KEY (type_id) REFERENCES transactiontypes (id))"
+    ]
+    , [
+        flip execute_ "ALTER TABLE Transactions ADD description TEXT"
+    ]]

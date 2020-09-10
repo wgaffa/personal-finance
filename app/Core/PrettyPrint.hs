@@ -1,16 +1,19 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Core.PrettyPrint
     ( printAccount
     , printListAccounts
-    , printTransactions
+    , printLedger
     , formatColumns
     ) where
 
+import Prelude hiding ((<>))
 import qualified Data.Text as Text
 
 import Data.List (transpose)
 
+import Text.Printf
 import Text.PrettyPrint.Boxes
 
 import Expense.Transaction
@@ -21,7 +24,7 @@ formatColumns items =
     vcat left
     . map (text . Text.unpack . Text.justifyLeft width ' ') $ items
   where
-    width = (+2) . maximum $ map Text.length items
+    width = maximum $ map Text.length items
 
 boxAccount :: Account -> Box
 boxAccount (Account number name element) =
@@ -39,27 +42,50 @@ printAccount = printBox . boxAccount
 printListAccounts :: [Account] -> IO ()
 printListAccounts =
     printBox
-    . hcat top
+    . hsep 2 top
     . map formatColumns
     . transpose
     . map accountRow
 
-printTransactions :: (Integral a) => [AccountTransaction a] -> IO ()
-printTransactions =
-    printBox
-    . hcat top
-    . map formatColumns
-    . transpose
-    . map transactionRow
+printLedger :: (Integral a) => Ledger a -> IO ()
+printLedger = printBox . renderLedger
+
+renderLedger :: (Integral a) => Ledger a -> Box
+renderLedger ledger@(Ledger account transactions) =
+    title // separator // body // separator // balance
+  where
+    body =
+        hsep 2 top
+        . map formatColumns
+        . transpose
+        . (++) [headers]
+        . map transactionRow $ transactions
+    title = alignHoriz center2 width (boxAccount account)
+    separator = text $ replicate width '-'
+    headers = ["Date", "Debit", "Credit", "Description"]
+    balance = text "Balance:" <+> (
+        hsep 1 left
+        . map (text . Text.unpack)
+        . balanceRow
+        . accountBalance $ ledger)
+    width = cols body
 
 transactionRow :: (Integral a) => AccountTransaction a -> [Text.Text]
 transactionRow AccountTransaction{..} =
-    [Text.pack $ show date] ++ transactionAmountRow amount
+    [Text.pack $ show date]
+        ++ transactionAmountRow amount
+        ++ [maybe Text.empty Text.pack description]
 
 transactionAmountRow :: (Integral a) => TransactionAmount a -> [Text.Text]
-transactionAmountRow (TransactionAmount t a) =
+transactionAmountRow (TransactionAmount Debit a) =
+    [Text.pack $ printf "%.2f" (fromIntegral a / 100 :: Double), Text.empty]
+transactionAmountRow (TransactionAmount Credit a) =
+    [Text.empty, Text.pack $ printf "%.2f" (fromIntegral a / 100 :: Double)]
+
+balanceRow :: (Integral a) => TransactionAmount a -> [Text.Text]
+balanceRow (TransactionAmount t a) =
     [ Text.pack $ show t
-    , Text.pack . show . (/100) . fromIntegral $ a]
+    , Text.pack $ printf "%.2f" (fromIntegral a / 100 :: Double)]
 
 accountRow :: Account -> [Text.Text]
 accountRow Account{..} =
