@@ -62,11 +62,11 @@ renderLedger ledger@(Ledger account transactions) =
         . map transactionRow $ transactions
     title = alignHoriz center2 width (boxAccount account)
     separator = text $ replicate width '-'
-    headers = ["Date", "Debit/Credit", "Amount", "Description"]
+    headers = ["Date", "Debit", "Credit", "Description"]
     balance = text "Balance:" <+> (
         hsep 1 left
         . map (text . Text.unpack)
-        . transactionAmountRow
+        . balanceRow
         . accountBalance $ ledger)
     width = cols body
 
@@ -77,7 +77,13 @@ transactionRow AccountTransaction{..} =
         ++ [maybe Text.empty Text.pack description]
 
 transactionAmountRow :: (Integral a) => TransactionAmount a -> [Text.Text]
-transactionAmountRow (TransactionAmount t a) =
+transactionAmountRow (TransactionAmount Debit a) =
+    [Text.pack $ printf "%.2f" (fromIntegral a / 100 :: Double), Text.empty]
+transactionAmountRow (TransactionAmount Credit a) =
+    [Text.empty, Text.pack $ printf "%.2f" (fromIntegral a / 100 :: Double)]
+
+balanceRow :: (Integral a) => TransactionAmount a -> [Text.Text]
+balanceRow (TransactionAmount t a) =
     [ Text.pack $ show t
     , Text.pack $ printf "%.2f" (fromIntegral a / 100 :: Double)]
 
