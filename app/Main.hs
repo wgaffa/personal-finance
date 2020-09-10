@@ -17,6 +17,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 
 import Database.SQLite.Simple
+import Database.SQLite.Simple.FromField
 
 import Data.Time
 
@@ -111,7 +112,7 @@ addTransaction = do
         (saveTransaction account transaction conn)
         (liftIO $ close conn)
 
-findLedger :: AccountNumber -> App (Ledger (AbsoluteValue Int))
+findLedger :: (FromField a) => AccountNumber -> App (Ledger a)
 findLedger number = do
     cfg <- ask
     ledger <- liftIO $ bracket
