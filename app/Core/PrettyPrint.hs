@@ -51,8 +51,8 @@ printLedger :: (Integral a) => Ledger a -> IO ()
 printLedger = printBox . renderLedger
 
 renderLedger :: (Integral a) => Ledger a -> Box
-renderLedger (Ledger account transactions) =
-    title // separator // body
+renderLedger ledger@(Ledger account transactions) =
+    title // separator // body // separator // balance
   where
     body =
         hsep 2 top
@@ -63,6 +63,11 @@ renderLedger (Ledger account transactions) =
     title = alignHoriz center2 width (boxAccount account)
     separator = text $ replicate width '-'
     headers = ["Date", "Debit/Credit", "Amount", "Description"]
+    balance = text "Balance:" <+> (
+        hsep 1 left
+        . map (text . Text.unpack)
+        . transactionAmountRow
+        . accountBalance $ ledger)
     width = cols body
 
 transactionRow :: (Integral a) => AccountTransaction a -> [Text.Text]

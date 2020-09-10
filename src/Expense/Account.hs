@@ -5,6 +5,7 @@ module Expense.Account
     , AccountName()
     , AccountNumber()
     , AccountTransaction(..)
+    , accountBalance
     , accountName
     , accountNumber
     , emptyAccountNumber
@@ -95,3 +96,11 @@ ledgerTransaction transaction (Ledger account transactions) =
     Ledger account appendTransaction
   where
     appendTransaction = transactions ++ [transaction]
+
+accountBalance :: (Num a) => Ledger a -> TransactionAmount a
+accountBalance (Ledger acc ts) =
+    flip TransactionAmount (balance ts)
+    . transactionType
+    . element $ acc
+  where
+    balance = foldr ((+) . toNumeral . amount) 0
