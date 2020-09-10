@@ -27,6 +27,9 @@ import Expense.Transaction
 data Ledger a = Ledger Account [AccountTransaction a]
     deriving(Show)
 
+instance Functor Ledger where
+    fmap f x@(Ledger a ts) = Ledger a $ map (fmap f) ts
+
 -- | All different account elements (types)
 data AccountElement = Asset | Liability | Equity | Income | Expenses
     deriving (Ord, Eq, Enum, Bounded, Show, Read)
@@ -90,6 +93,9 @@ data AccountTransaction a = AccountTransaction {
     , description :: Maybe String -- ^ Description for the transaction
     , amount :: TransactionAmount a -- ^ Amount debited or credited
 } deriving (Show)
+
+instance Functor AccountTransaction where
+    fmap f t = t{amount = fmap f (amount t)}
 
 ledgerTransaction :: AccountTransaction a -> Ledger a -> Ledger a
 ledgerTransaction transaction (Ledger account transactions) =

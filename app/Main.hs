@@ -83,13 +83,8 @@ showTransactions :: ShowOptions -> App ()
 showTransactions ShowOptions{..} =
     (liftEither . maybeToEither InvalidNumber . accountNumber $ filterAccount)
     >>= findLedger
-    >>= pure . transformLedger
+    >>= pure . fmap unAbsoluteValue
     >>= liftIO . printLedger
-  where
-    transformLedger (Ledger account ts) =
-        Ledger account
-        $ map (\x@AccountTransaction{..} ->
-             x{amount = fmap unAbsoluteValue amount}) ts
 
 createAccount :: App ()
 createAccount = do
