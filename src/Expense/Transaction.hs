@@ -3,20 +3,21 @@ module Expense.Transaction(
     TransactionAmount(..)
     , TransactionType(..)
     -- * Functions
+    -- ** Constructors
     , credit
     , debit
+    -- ** Transformations
     , splitTransactions
     , toNumeral
-    , toSigNum
+    -- ** Calculations
     , zeroBalance
     , mzeroBalance
 ) where
 
 -- Text manipulation
-import Data.Char
 import qualified Data.Text as Text
 
-import Data.Function
+import Data.Function ( on )
 
 -- time and date
 import Data.Time (Day)
@@ -40,28 +41,28 @@ credit = TransactionAmount Credit
 debit :: a -> TransactionAmount a
 debit = TransactionAmount Debit
 
--- experimental below
--- type BalanceSheet a b = AccountElement -> [Ledger a] -> TransactionAmount b
-type ZeroBalance a = [TransactionAmount a] -> Bool
-
+-- | Calculate wether the balance on the transactions are equal
 zeroBalance :: (Eq a, Num a) => [TransactionAmount a]-> Bool
 zeroBalance xs = foldr ((+) . toNumeral) 0 xs == 0
 
+-- | Overloaded version for monoids of `zeroBalance`
 mzeroBalance :: (Eq a, Monoid a) => [TransactionAmount a] -> Bool
 mzeroBalance xs =
     let toAmount (TransactionAmount _ a) = a
         (debits, credits) = mapPair (map toAmount) $ splitTransactions xs
     in mconcat debits == mconcat credits
+  where
+    mapPair f = uncurry ((,) `on` f)
 
-mapPair :: (a -> b) -> (a, a) -> (b, b)
-mapPair f = uncurry ((,) `on` f)
+{-|
+    Return the numeral representation of a transaction entry.
 
+    A Debit is represented as positive and Credit as negative
+-}
 toNumeral :: (Num a) => TransactionAmount a -> a
-toNumeral (TransactionAmount t x) = toSigNum t * x
-
-toSigNum :: (Num a) => TransactionType -> a
-toSigNum Debit = 1
-toSigNum Credit = -1
+toNumeral (TransactionAmount t x) = x * case t of
+    Debit -> 1
+    Credit -> -1
 
 -- | Split transactions in debits and credits
 splitTransactions ::
