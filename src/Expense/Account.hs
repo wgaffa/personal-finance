@@ -69,11 +69,18 @@ class Accountable f where
     transactionType :: f -> TransactionType
     increase :: f -> (a -> TransactionAmount a)
     decrease :: f -> (a -> TransactionAmount a)
+    -- | Fixes the sign for a balance amount, when the transaction
+    -- | types does not match we negate the number given by (a -> b)
+    toBalance :: (Num b) =>
+        f -> (a -> b) -> a -> TransactionAmount b
+    toBalance x f a
+        | transactionType x == Debit = TransactionAmount (transactionType x) (f a)
+        | otherwise = TransactionAmount (transactionType x) . negate $ (f a)
 
 instance Accountable Account where
     transactionType = transactionType . element
     increase = increase . element
-    decrease = increase . element
+    decrease = decrease . element
 
 debitAccounts :: [AccountElement]
 debitAccounts = [Asset, Expenses]
@@ -106,8 +113,7 @@ ledgerTransaction transaction (Ledger account transactions) =
 
 accountBalance :: (Num a) => Ledger a -> TransactionAmount a
 accountBalance (Ledger acc ts) =
-    flip TransactionAmount (balance ts)
-    . transactionType
-    . element $ acc
+    toBalance acc id
+    . balance $ ts
   where
     balance = foldr ((+) . toNumeral . amount) 0
