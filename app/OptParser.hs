@@ -7,9 +7,26 @@ module OptParser
     , execArgParser
     ) where
 
-import Control.Applicative
+import Control.Applicative ( optional )
 
 import Options.Applicative
+    ( optional,
+      argument,
+      auto,
+      command,
+      fullDesc,
+      header,
+      help,
+      info,
+      infoOption,
+      long,
+      metavar,
+      progDesc,
+      strOption,
+      execParser,
+      helper,
+      hsubparser,
+      Parser )
 import Data.Semigroup ((<>))
 
 import Development.GitRev (gitHash)

@@ -4,15 +4,17 @@ module Core.Utils
     , promptExcept
     ) where
 
-import System.IO
+import System.IO ( stdout, hFlush )
 
 import Control.Monad.Except
+    ( MonadIO(liftIO), ExceptT, liftEither )
 
-import Database.SQLite.Simple
-import Database.SQLite.Simple.Ok
+import Database.SQLite.Simple ( SQLData(SQLInteger) )
+import Database.SQLite.Simple.Ok ( Ok(Ok) )
 import Database.SQLite.Simple.FromField
+    ( fieldData, FromField(..) )
 
-import Utility.Absolute
+import Utility.Absolute ( AbsoluteValue, absoluteValue )
 
 maybeToEither :: e -> Maybe a -> Either e a
 maybeToEither l Nothing = Left l

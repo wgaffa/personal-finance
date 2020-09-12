@@ -18,12 +18,17 @@ module Expense.Account
     , unAccountNumber
     ) where
 
-import Data.Char
+import Data.Char ( isSpace )
 import qualified Data.Text as Text
 
 import Data.Time (Day)
 
 import Expense.Transaction
+    ( TransactionAmount(..),
+      TransactionType(..),
+      credit,
+      debit,
+      toNumeral )
 
 data Ledger a = Ledger Account [AccountTransaction a]
     deriving(Show)

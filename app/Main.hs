@@ -3,35 +3,60 @@
 
 module Main where
 
-import System.IO
+import System.IO ()
 
-import Data.Char
+import Data.Char ( isSpace )
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
-import Control.Monad.Catch
+import Control.Monad.Catch ( bracket, finally )
 import Control.Monad.Except
-import Control.Monad.Trans.Maybe
+    ( MonadTrans(lift),
+      MonadIO(liftIO),
+      ExceptT,
+      liftEither,
+      runExceptT )
+import Control.Monad.Trans.Maybe ( MaybeT(runMaybeT) )
 import Control.Monad.Reader
-import Control.Monad.Trans.Class
-import Control.Monad.IO.Class
+    ( MonadTrans(lift),
+      MonadIO(liftIO),
+      ReaderT(runReaderT),
+      MonadReader(ask) )
+import Control.Monad.IO.Class ( MonadIO(liftIO) )
 
-import Database.SQLite.Simple
-import Database.SQLite.Simple.FromField
+import Database.SQLite.Simple ( close, open, Connection )
+import Database.SQLite.Simple.FromField ( FromField )
 
-import Data.Time
-
-import Repl
 import OptParser
+    ( Command(..),
+      ShowOptions(..),
+      Options(Options, optCommand, dbConnection),
+      execArgParser )
 import Core.Database
+    ( saveAccount,
+      saveTransaction,
+      allAccountTransactions,
+      allAccounts,
+      findAccount,
+      updateDatabase )
 import Core.PrettyPrint
+    ( printAccount, printListAccounts, printLedger )
 
-import Expense.Transaction
+import Expense.Transaction ( TransactionAmount )
 import Expense.Account
+    ( AccountTransaction(AccountTransaction),
+      Accountable(increase, decrease),
+      Account(Account),
+      AccountNumber,
+      Ledger(..),
+      accountName,
+      accountNumber )
 
-import Core.Utils
+import Core.Utils ( maybeToEither, promptExcept )
 import Core.Error
-import Utility.Absolute
+    ( AccountError(InvalidNumber, AccountNotFound, InvalidName,
+                   InvalidElement, MiscError, ParseError) )
+import Utility.Absolute ( unAbsoluteValue )
 
 data AppEnvironment = AppEnvironment
     { connectionString :: String

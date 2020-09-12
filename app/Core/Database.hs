@@ -12,22 +12,51 @@ module Core.Database
 
 import Control.Monad (when)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Maybe ( MaybeT(..) )
 import Control.Monad.Except
+    ( when,
+      unless,
+      MonadTrans(lift),
+      MonadIO(liftIO),
+      ExceptT(..),
+      MonadError(throwError) )
 import Control.Monad.IO.Class (liftIO)
 
 import Database.SQLite.Simple
-import Database.SQLite.Simple.Ok
-import Database.SQLite.Simple.ToField
+    ( execute,
+      executeMany,
+      execute_,
+      query,
+      query_,
+      withTransaction,
+      field,
+      Only(Only, fromOnly),
+      SQLData(SQLText, SQLInteger),
+      ResultError(ConversionFailed),
+      FromRow(..),
+      Connection )
+import Database.SQLite.Simple.Ok ( Ok(Ok) )
+import Database.SQLite.Simple.ToField ( ToField(..) )
 import Database.SQLite.Simple.FromField
+    ( ResultError(ConversionFailed),
+      fieldData,
+      returnError,
+      FromField(..) )
 
 import qualified Data.Text as Text
 
-import Data.Time
-
-import Core.Error
+import Core.Error ( AccountError(AccountNotSaved) )
 import Expense.Transaction
+    ( TransactionAmount(..), TransactionType(..) )
 import Expense.Account
+    ( AccountTransaction(..),
+      Account(..),
+      AccountNumber(..),
+      AccountName(..),
+      AccountElement(Expenses, Asset),
+      accountName,
+      emptyAccountNumber,
+      accountNumber )
 
 instance ToField AccountNumber where
     toField = toField . unAccountNumber

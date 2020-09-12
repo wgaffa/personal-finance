@@ -11,17 +11,19 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "stack build"
+            "command": "stack build",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         },
         {
             "label": "build windows (stable)",
             "type": "shell",
             "command": "stack build --resolver lts-15.3",
             "problemMatcher": [],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
+            "group": "build"
         },
         {
             "label": "fast build windows (stable)",

@@ -13,11 +13,29 @@ import qualified Data.Text as Text
 
 import Data.List (transpose)
 
-import Text.Printf
+import Text.Printf ( printf )
 import Text.PrettyPrint.Boxes
+    ( (//),
+      (<+>),
+      alignHoriz,
+      center2,
+      hsep,
+      left,
+      printBox,
+      text,
+      top,
+      vcat,
+      Box(cols) )
 
 import Expense.Transaction
+    ( TransactionAmount(..), TransactionType(Credit, Debit) )
 import Expense.Account
+    ( AccountTransaction(..),
+      Account(..),
+      AccountNumber(unAccountNumber),
+      AccountName(unAccountName),
+      Ledger(..),
+      accountBalance )
 
 formatColumns :: [Text.Text] -> Box
 formatColumns items =
