@@ -5,6 +5,7 @@ module Expense.Account
     , AccountName()
     , AccountNumber()
     , AccountTransaction(..)
+    , Accountable
     , accountBalance
     , accountName
     , accountNumber

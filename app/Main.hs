@@ -102,7 +102,7 @@ addTransaction = do
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
     account <- lift $ findAccountInteractive conn
-    transaction <- lift $ createTransactionInteractive
+    transaction <- lift $ createTransactionInteractive account
     lift $ finally
         (saveTransaction account transaction conn)
         (liftIO $ close conn)
@@ -139,14 +139,16 @@ findAccountInteractive conn =
     >>= liftEither . maybeToEither (MiscError "account not found")
 
 createTransactionInteractive ::
-    ExceptT AccountError IO (AccountTransaction Int)
-createTransactionInteractive =
+    (Accountable a) =>
+    a
+    -> ExceptT AccountError IO (AccountTransaction Int)
+createTransactionInteractive x =
     AccountTransaction
     <$> promptExcept "Date: "
         (maybeToEither ParseError . readMaybe)
     <*> promptExcept "Description: "
         (pure . emptyString)
-    <*> (createTransactionAmountInteractive
+    <*> (createTransactionAmountInteractive x
         >>= return . fmap (truncate . (*100)))
   where
     emptyString xs
@@ -154,10 +156,16 @@ createTransactionInteractive =
         | otherwise = Just xs
 
 createTransactionAmountInteractive ::
-    ExceptT AccountError IO (TransactionAmount Double)
-createTransactionAmountInteractive =
-    TransactionAmount
-    <$> promptExcept "Debit/Credit: "
-        (maybeToEither InvalidTransactionType . readMaybe)
-    <*> promptExcept "Amount: "
-        (maybeToEither InvalidNumber . readMaybe)
+    (Accountable a)
+    => a
+    -> ExceptT AccountError IO (TransactionAmount Double)
+createTransactionAmountInteractive x = do
+    promptExcept "Amount: " (maybeToEither InvalidNumber . readMaybe)
+        >>= pure . createAccountTransactionAmount x
+
+createAccountTransactionAmount ::
+    (Accountable a, Ord b, Num b)
+    => a -> b -> TransactionAmount b
+createAccountTransactionAmount x m
+    | m < 0 = decrease x m
+    | otherwise = increase x m

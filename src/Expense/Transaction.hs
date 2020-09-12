@@ -12,6 +12,8 @@ module Expense.Transaction(
     -- ** Calculations
     , zeroBalance
     , mzeroBalance
+    -- ** Parsing
+    , parseTransactionAmount
 ) where
 
 -- Text manipulation
@@ -74,3 +76,8 @@ splitTransactions =
     split trans@(TransactionAmount t _) acc = splitTypes t trans acc
     splitTypes Debit x (debits, credits) = (x:debits, credits)
     splitTypes Credit x (debits, credits) = (debits, x:credits)
+
+parseTransactionAmount :: (Ord a, Num a) => (a -> b) -> a -> TransactionAmount b
+parseTransactionAmount f n
+    | n < 0 = credit (f n)
+    | otherwise = debit (f n)
