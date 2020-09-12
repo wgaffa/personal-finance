@@ -1,7 +1,7 @@
 module Utility.Absolute 
     (
     -- * Types
-      AbsoluteValue()
+      AbsoluteValue
     -- * Constructors
     , absoluteValue
     , unAbsoluteValue
@@ -9,15 +9,18 @@ module Utility.Absolute
 
 -- | Absolute value container for any absolute number,
 -- see constructor 'absoluteValue'
-newtype AbsoluteValue a = AbsoluteValue {
-    unAbsoluteValue :: a -- ^ unwraps the contained value
-    } deriving (Ord, Eq, Show)
+newtype AbsoluteValue a = AbsoluteValue a
+    deriving (Ord, Eq, Show)
 
 instance (Num a) => Semigroup (AbsoluteValue a) where
     (AbsoluteValue a) <> (AbsoluteValue b) = AbsoluteValue (a + b)
 
 instance (Num a) => Monoid (AbsoluteValue a) where
     mempty = AbsoluteValue 0
+
+-- | Unwraps an `AbsoluteValue`
+unAbsoluteValue :: AbsoluteValue a -> a
+unAbsoluteValue (AbsoluteValue a) = a
 
 -- | Constructor for 'AbsoluteValue'
 -- This creates an absolute value buy applying 'Prelude.abs' to the argument
