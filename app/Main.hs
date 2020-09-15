@@ -121,7 +121,7 @@ addTransaction = do
                 forM_ ts $ \ acc -> do
                     res <- runExceptT $ saveTransaction
                         (fst acc)
-                        (fmap unAbsoluteValue $ snd acc)
+                        (unAbsoluteValue <$> snd acc)
                          conn
                     when (isLeft res) $
                         error "Unexpected error when saving transaction"
@@ -162,23 +162,24 @@ findAccountInteractive conn =
 createTransactionInteractive ::
     (Accountable a) =>
     a
-    -> ExceptT AccountError IO (AccountTransaction Int)
+    -> ExceptT AccountError IO (AccountTransaction (AbsoluteValue Int))
 createTransactionInteractive x =
     AccountTransaction
     <$> promptExcept "Date: "
         (maybeToEither ParseError . readMaybe)
     <*> promptExcept "Description: "
         (pure . emptyString)
-    <*> (fmap (truncate . (*100)) <$> createTransactionAmountInteractive x)
+    <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
+        <$> createTransactionAmountInteractive x)
   where
     emptyString xs
         | all isSpace xs = Nothing
         | otherwise = Just xs
 
 createTransactionAmountInteractive ::
-    (Accountable a, Num b, Read b, Eq b)
+    (Accountable a)
     => a
-    -> ExceptT AccountError IO (TransactionAmount b)
+    -> ExceptT AccountError IO (TransactionAmount (AbsoluteValue Double))
 createTransactionAmountInteractive x =
     createAccountTransactionAmount x
     <$> promptExcept "Amount: " (maybeToEither InvalidNumber . readMaybe)
@@ -190,24 +191,24 @@ createAccountTransactionAmount x m
     | signum m == -1 = decrease x . absoluteValue $ m
     | otherwise = increase x . absoluteValue $ m
 
-transactionInteractive :: (Num a, Read a, Eq a, Show a)
-    => Day
-    -> StateT ([(Account, AccountTransaction (AbsoluteValue a))]) App ()
+transactionInteractive ::
+    Day
+    -> StateT [(Account, AccountTransaction (AbsoluteValue Int))] App ()
 transactionInteractive date = do
     cfg <- ask
     account <- lift $ bracket
         (liftIO . open $ connectionString cfg)
         (liftIO . close)
         (lift . findAccountInteractive)
-    transaction <- lift . lift $ AccountTransaction
-        <$> pure date
-        <*> promptExcept "Note: " (pure . emptyString)
-        <*> createTransactionAmountInteractive account
+    transaction <- lift . lift $ AccountTransaction date
+        <$> promptExcept "Note: " (pure . emptyString)
+        <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
+            <$> createTransactionAmountInteractive account)
     st <- get
     put $ (account, transaction):st
 
     let transactions = transaction : map snd st
-        transformToNum = map (fmap unAbsoluteValue . amount) $ transactions
+        transformToNum = map (fmap unAbsoluteValue . amount) transactions
         currentBalance = balance transformToNum
         in when (currentBalance /= 0) (transactionInteractive date)
   where
