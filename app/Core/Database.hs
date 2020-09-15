@@ -10,6 +10,8 @@ module Core.Database
     , updateDatabase
     ) where
 
+import Data.Maybe (fromMaybe, isJust)
+
 import Control.Monad (when)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe ( MaybeT(..) )
@@ -73,7 +75,7 @@ instance FromField AccountNumber where
     fromField f =
         case fieldData f of
             (SQLInteger i) -> Ok
-                . maybe emptyAccountNumber id
+                . fromMaybe emptyAccountNumber
                 . accountNumber . fromIntegral $ i
             _ -> returnError ConversionFailed f "need an int"
 
@@ -117,13 +119,13 @@ saveTransaction ::
     -> ExceptT AccountError IO ()
 saveTransaction Account{..} AccountTransaction{..} conn = do
     typeId <- liftIO $ runMaybeT $
-        transactionTypeId (fst $ transactionTuple) conn
+        transactionTypeId (fst transactionTuple) conn
     liftIO $ execute conn q
         (number,
         maybe Text.empty Text.pack description,
         typeId, date, snd transactionTuple)
   where
-    transactionTuple = (\(TransactionAmount t a) -> (t, a)) $ amount
+    transactionTuple = (\(TransactionAmount t a) -> (t, a)) amount
     q = "insert into transactions\
         \ (account_id, description, type_id, date, amount)\
         \ values (?, ?, ?, ?, ?)"
@@ -148,14 +150,13 @@ checkAccount number conn =
 insertAccount :: Account -> Connection -> IO ()
 insertAccount Account{..} conn =
     runMaybeT (elementId element conn)
-    >>= \x -> (execute conn q (number, name, x))
+    >>= \x -> execute conn q (number, name, x)
   where
     q = "insert into Accounts (id, name, element_id) values (?, ?, ?)"
 
 accountExists :: AccountNumber -> Connection -> IO Bool
 accountExists number conn =
-    runMaybeT (findAccount number conn)
-    >>= return . maybe False (const True)
+    isJust <$> runMaybeT (findAccount number conn)
 
 allAccounts :: Connection -> IO [Account]
 allAccounts conn = query_ conn q
@@ -165,7 +166,7 @@ allAccounts conn = query_ conn q
 
 findAccount :: AccountNumber -> Connection -> MaybeT IO Account
 findAccount number conn = do
-    res <- liftIO $ (query conn q params :: IO [Account])
+    res <- liftIO (query conn q params :: IO [Account])
     case res of
         (x:_) -> return x
         _ -> MaybeT . return $ Nothing
@@ -198,7 +199,7 @@ updateDatabase conn = do
     unless ("meta_schema" `elem` ts) $ createMetaTable conn
     v <- schemaVersion conn
     let updates = drop v schema
-        funcs = zipWith (\fs v -> runVersion v fs) updates [v+1 ..]
+        funcs = zipWith (flip runVersion) updates [v+1 ..]
         in mapM_ ($ conn) funcs
 
 runVersion :: Int -> [Connection -> IO ()] -> Connection -> IO ()
@@ -219,14 +220,14 @@ updateVersion version conn = execute conn q (Only version)
     q = "update meta_schema set version=? where id=1"
 
 schemaVersion :: Connection -> IO Int
-schemaVersion conn = query_ conn q >>= pure . fromOnly . firstItem
+schemaVersion conn = fromOnly . firstItem <$> query_ conn q
   where
     q = "select version from meta_schema where id=1"
     firstItem [] = error "Database is in an invalid state"
     firstItem (x:_) = x
 
 tables :: Connection -> IO [String]
-tables conn = query_ conn q >>= pure . map fromOnly
+tables conn = map fromOnly <$> query_ conn q
   where
     q = "select name from sqlite_master where type='table' \
         \and name not like 'sqlite%'"

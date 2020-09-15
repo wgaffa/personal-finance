@@ -80,7 +80,7 @@ class Accountable f where
         f -> (a -> b) -> a -> TransactionAmount b
     toBalance x f a
         | transactionType x == Debit = TransactionAmount (transactionType x) (f a)
-        | otherwise = TransactionAmount (transactionType x) . negate $ (f a)
+        | otherwise = TransactionAmount (transactionType x) . negate $ f a
 
 instance Accountable Account where
     transactionType = transactionType . element

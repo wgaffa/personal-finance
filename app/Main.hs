@@ -1,10 +1,10 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
 import System.IO ()
 
+import Data.Maybe (fromMaybe)
 import Data.Char ( isSpace )
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
@@ -69,7 +69,7 @@ main :: IO ()
 main = do
     env <- readEnvironment
     runner <- runExceptT . flip runReaderT env . dispatcher . command $ env
-    either perror (return . id) runner
+    either perror return runner
   where
     perror x = putStrLn $ "Error: " ++ show x
 
@@ -82,9 +82,9 @@ dispatcher UpdateDatabase = updateDb
 
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
-    (Options {..}) <- execArgParser
+    Options {..} <- execArgParser
     return AppEnvironment {
-        connectionString = maybe "db.sqlite3" id dbConnection
+        connectionString = fromMaybe "db.sqlite3" dbConnection
         , command = optCommand
         }
 
@@ -93,8 +93,8 @@ updateDb = do
     cfg <- ask
     liftIO $ bracket
         (open $ connectionString cfg)
-        (close)
-        (updateDatabase)
+        close
+        updateDatabase
     liftIO $ putStrLn "Database updated"
 
 showAccounts :: App ()
@@ -106,14 +106,16 @@ showAccounts = do
 
 showTransactions :: ShowOptions -> App ()
 showTransactions ShowOptions{..} =
-    (liftEither . maybeToEither InvalidNumber . accountNumber $ filterAccount)
-    >>= findLedger
-    >>= pure . fmap unAbsoluteValue
+    (fmap unAbsoluteValue
+        <$> ((liftEither
+                . maybeToEither InvalidNumber
+                . accountNumber $ filterAccount)
+            >>= findLedger))
     >>= liftIO . printLedger
 
 createAccount :: App ()
 createAccount = do
-    acc <- lift $ createAccountInteractive
+    acc <- lift createAccountInteractive
     liftIO $ putStrLn "Attempting to save account"
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
@@ -137,13 +139,13 @@ findLedger number = do
     cfg <- ask
     ledger <- liftIO $ bracket
         (open $ connectionString cfg)
-        (close)
+        close
         (\conn -> do
             account <- runMaybeT $ findAccount number conn
             case account of
                 Just x ->
-                    (allAccountTransactions x conn)
-                    >>= pure . Right . Ledger x
+                    Right . Ledger x
+                    <$> allAccountTransactions x conn
                 Nothing -> pure . Left $ AccountNotFound
         )
     liftEither ledger
@@ -173,8 +175,7 @@ createTransactionInteractive x =
         (maybeToEither ParseError . readMaybe)
     <*> promptExcept "Description: "
         (pure . emptyString)
-    <*> (createTransactionAmountInteractive x
-        >>= return . fmap (truncate . (*100)))
+    <*> (fmap (truncate . (*100)) <$> createTransactionAmountInteractive x)
   where
     emptyString xs
         | all isSpace xs = Nothing
@@ -184,9 +185,9 @@ createTransactionAmountInteractive ::
     (Accountable a)
     => a
     -> ExceptT AccountError IO (TransactionAmount Double)
-createTransactionAmountInteractive x = do
-    promptExcept "Amount: " (maybeToEither InvalidNumber . readMaybe)
-        >>= pure . createAccountTransactionAmount x
+createTransactionAmountInteractive x =
+    createAccountTransactionAmount x
+    <$> promptExcept "Amount: " (maybeToEither InvalidNumber . readMaybe)
 
 createAccountTransactionAmount ::
     (Accountable a, Ord b, Num b)
