@@ -178,7 +178,7 @@ createAccountTransactionAmount x m
 
 transactionInteractive :: (Num a, Read a, Eq a, Show a)
     => Day
-    -> StateT ([AccountTransaction (AbsoluteValue a)]) App ()
+    -> StateT ([(Account, AccountTransaction (AbsoluteValue a))]) App ()
 transactionInteractive date = do
     cfg <- ask
     account <- lift $ bracket
@@ -190,9 +190,10 @@ transactionInteractive date = do
         <*> promptExcept "Note: " (pure . emptyString)
         <*> createTransactionAmountInteractive account
     st <- get
-    put (transaction:st)
+    put $ (account, transaction):st
 
-    let transformToNum = map (fmap unAbsoluteValue . amount) $ transaction:st
+    let transactions = transaction : map snd st
+        transformToNum = map (fmap unAbsoluteValue . amount) $ transactions
         currentBalance = balance transformToNum
         in when (currentBalance /= 0) (transactionInteractive date)
   where
