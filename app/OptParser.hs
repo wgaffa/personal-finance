@@ -38,7 +38,7 @@ data Options = Options
     , optCommand :: Command
     }
 
-data ShowOptions = ShowOptions { filterAccount :: Int }
+newtype ShowOptions = ShowOptions { filterAccount :: Int }
 
 data Command
     = List
@@ -87,7 +87,7 @@ commands = hsubparser
 showOptions :: Parser ShowOptions
 showOptions =
     ShowOptions
-    <$> (argument auto (metavar "ACCOUNTID"))
+    <$> argument auto (metavar "ACCOUNTID")
 
 options :: Parser Options
 options =
