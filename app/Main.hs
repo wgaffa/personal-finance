@@ -8,7 +8,9 @@ import System.IO ()
 import Data.Char ( isSpace )
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
+import Data.Time (Day)
 
+import Control.Monad (when)
 import Control.Monad.Catch ( bracket, finally )
 import Control.Monad.Except
     ( MonadTrans(lift),
@@ -17,6 +19,7 @@ import Control.Monad.Except
       liftEither,
       runExceptT )
 import Control.Monad.Trans.Maybe ( MaybeT(runMaybeT) )
+import Control.Monad.Trans.State (execStateT, execState, put, modify, StateT, get)
 import Control.Monad.Reader
     ( MonadTrans(lift),
       MonadIO(liftIO),
@@ -28,35 +31,15 @@ import Database.SQLite.Simple ( close, open, Connection )
 import Database.SQLite.Simple.FromField ( FromField )
 
 import OptParser
-    ( Command(..),
-      ShowOptions(..),
-      Options(Options, optCommand, dbConnection),
-      execArgParser )
 import Core.Database
-    ( saveAccount,
-      saveTransaction,
-      allAccountTransactions,
-      allAccounts,
-      findAccount,
-      updateDatabase )
 import Core.PrettyPrint
-    ( printAccount, printListAccounts, printLedger )
 
-import Expense.Transaction ( TransactionAmount )
+import Expense.Transaction
 import Expense.Account
-    ( AccountTransaction(AccountTransaction),
-      Accountable(increase, decrease),
-      Account(Account),
-      AccountNumber,
-      Ledger(..),
-      accountName,
-      accountNumber )
 
-import Core.Utils ( maybeToEither, promptExcept )
+import Core.Utils
 import Core.Error
-    ( AccountError(InvalidNumber, AccountNotFound, InvalidName,
-                   InvalidElement, MiscError, ParseError) )
-import Utility.Absolute ( unAbsoluteValue )
+import Utility.Absolute
 
 data AppEnvironment = AppEnvironment
     { connectionString :: String
@@ -124,13 +107,11 @@ createAccount = do
 
 addTransaction :: App ()
 addTransaction = do
-    cfg <- ask
-    conn <- liftIO . open $ connectionString cfg
-    account <- lift $ findAccountInteractive conn
-    transaction <- lift $ createTransactionInteractive account
-    lift $ finally
-        (saveTransaction account transaction conn)
-        (liftIO $ close conn)
+    date <- lift $ promptExcept "Date: " (maybeToEither ParseError . readMaybe)
+    -- get the transactions and affecting account
+    ts <- execStateT (transactionInteractive date) [] -- repeat until zero balance
+    -- save the transactions in the right account
+    return ()
 
 findLedger :: (FromField a) => AccountNumber -> App (Ledger a)
 findLedger number = do
@@ -161,7 +142,7 @@ findAccountInteractive conn =
     promptExcept "Account number: "
         (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
     >>= liftIO . runMaybeT . flip findAccount conn
-    >>= liftEither . maybeToEither (MiscError "account not found")
+    >>= liftEither . maybeToEither AccountNotFound
 
 createTransactionInteractive ::
     (Accountable a) =>
@@ -174,23 +155,47 @@ createTransactionInteractive x =
     <*> promptExcept "Description: "
         (pure . emptyString)
     <*> (createTransactionAmountInteractive x
-        >>= return . fmap (truncate . (*100)))
+        >>= return . fmap (truncate . (*100) . unAbsoluteValue))
   where
     emptyString xs
         | all isSpace xs = Nothing
         | otherwise = Just xs
 
 createTransactionAmountInteractive ::
-    (Accountable a)
+    (Accountable a, Num b, Read b, Eq b)
     => a
-    -> ExceptT AccountError IO (TransactionAmount Double)
+    -> ExceptT AccountError IO (TransactionAmount (AbsoluteValue b))
 createTransactionAmountInteractive x = do
     promptExcept "Amount: " (maybeToEither InvalidNumber . readMaybe)
         >>= pure . createAccountTransactionAmount x
 
 createAccountTransactionAmount ::
-    (Accountable a, Ord b, Num b)
-    => a -> b -> TransactionAmount b
+    (Accountable a, Num b, Eq b)
+    => a -> b -> TransactionAmount (AbsoluteValue b)
 createAccountTransactionAmount x m
-    | m < 0 = decrease x m
-    | otherwise = increase x m
+    | signum m == -1 = decrease x . absoluteValue $ m
+    | otherwise = increase x . absoluteValue $ m
+
+transactionInteractive :: (Num a, Read a, Eq a, Show a)
+    => Day
+    -> StateT ([AccountTransaction (AbsoluteValue a)]) App ()
+transactionInteractive date = do
+    cfg <- ask
+    account <- lift $ bracket
+        (liftIO . open $ connectionString cfg)
+        (liftIO . close)
+        (lift . findAccountInteractive)
+    transaction <- lift . lift $ AccountTransaction
+        <$> pure date
+        <*> promptExcept "Note: " (pure . emptyString)
+        <*> createTransactionAmountInteractive account
+    st <- get
+    put (transaction:st)
+
+    let transformToNum = map (fmap unAbsoluteValue . amount) $ transaction:st
+        currentBalance = balance transformToNum
+        in when (currentBalance /= 0) (transactionInteractive date)
+  where
+    emptyString xs
+        | all isSpace xs = Nothing
+        | otherwise = Just xs

@@ -12,6 +12,7 @@ module Expense.Transaction(
     -- ** Calculations
     , zeroBalance
     , mzeroBalance
+    , balance
     -- ** Parsing
     , parseTransactionAmount
 ) where
@@ -44,8 +45,12 @@ debit :: a -> TransactionAmount a
 debit = TransactionAmount Debit
 
 -- | Calculate wether the balance on the transactions are equal
-zeroBalance :: (Eq a, Num a) => [TransactionAmount a]-> Bool
-zeroBalance xs = foldr ((+) . toNumeral) 0 xs == 0
+zeroBalance :: (Eq a, Num a) => [TransactionAmount a] -> Bool
+zeroBalance xs = balance xs == 0
+
+-- | Calculate the numeral balance for a list of transactions
+balance :: (Num a) => [TransactionAmount a] -> a
+balance = foldr ((+) . toNumeral) 0
 
 -- | Overloaded version for monoids of `zeroBalance`
 mzeroBalance :: (Eq a, Monoid a) => [TransactionAmount a] -> Bool
