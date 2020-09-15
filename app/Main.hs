@@ -9,8 +9,9 @@ import Data.Char ( isSpace )
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 import Data.Time (Day)
+import Data.Either (isLeft)
 
-import Control.Monad (when)
+import Control.Monad (when, forM_)
 import Control.Monad.Catch ( bracket, finally )
 import Control.Monad.Except
     ( MonadTrans(lift),
@@ -27,7 +28,7 @@ import Control.Monad.Reader
       MonadReader(ask) )
 import Control.Monad.IO.Class ( MonadIO(liftIO) )
 
-import Database.SQLite.Simple ( close, open, Connection )
+import Database.SQLite.Simple (withTransaction,  close, open, Connection )
 import Database.SQLite.Simple.FromField ( FromField )
 
 import OptParser
@@ -107,10 +108,22 @@ createAccount = do
 
 addTransaction :: App ()
 addTransaction = do
+    cfg <- ask
     date <- lift $ promptExcept "Date: " (maybeToEither ParseError . readMaybe)
-    -- get the transactions and affecting account
-    ts <- execStateT (transactionInteractive date) [] -- repeat until zero balance
-    -- save the transactions in the right account
+    ts <- execStateT (transactionInteractive date) []
+    bracket
+        (liftIO . open $ connectionString cfg)
+        (liftIO . close)
+        (liftIO . \ conn -> do
+            withTransaction conn $ do
+                forM_ ts $ \ acc -> do
+                    res <- runExceptT $ saveTransaction
+                        (fst acc)
+                        (fmap unAbsoluteValue $ snd acc)
+                         conn
+                    when (isLeft res) $
+                        error "Unexpected error when saving transaction"
+        )
     return ()
 
 findLedger :: (FromField a) => AccountNumber -> App (Ledger a)
