@@ -1,2 +1,8 @@
 .stack-work/
 *~
+*.db
+*.sqlite*
+.history
+.ghci
+.ghcid
+report.html

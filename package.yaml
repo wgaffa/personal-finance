@@ -21,6 +21,9 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- text
+- containers
+- time
 
 library:
   source-dirs: src
@@ -35,6 +38,14 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - expense-tracker
+    - mtl
+    - optparse-applicative
+    - repline
+    - transformers
+    - sqlite-simple
+    - exceptions
+    - boxes
+    - gitrev
 
 tests:
   expense-tracker-test:
