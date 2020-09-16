@@ -3,19 +3,24 @@
 
 module Core.PrettyPrint
     ( printAccount
+    , printJournal
     , printListAccounts
     , printLedger
     , formatColumns
     ) where
 
 import Prelude hiding ((<>))
+
+import Data.Time (Day)
 import qualified Data.Text as Text
 
+import Data.Monoid (Sum(Sum), getSum)
+import Data.Function (on)
 import Data.List (transpose)
 
 import Text.Printf ( printf )
 import Text.PrettyPrint.Boxes
-    ( (//),
+    ((//),
       (<+>),
       alignHoriz,
       center2,
@@ -25,17 +30,12 @@ import Text.PrettyPrint.Boxes
       text,
       top,
       vcat,
+      vsep,
       Box(cols) )
 
 import Expense.Transaction
-    ( TransactionAmount(..), TransactionType(Credit, Debit) )
 import Expense.Account
-    ( AccountTransaction(..),
-      Account(..),
-      AccountNumber(unAccountNumber),
-      AccountName(unAccountName),
-      Ledger(..),
-      accountBalance )
+import Utility.Absolute
 
 formatColumns :: [Text.Text] -> Box
 formatColumns items =
@@ -68,6 +68,41 @@ printListAccounts =
 printLedger :: (Integral a) => Ledger a -> IO ()
 printLedger = printBox . renderLedger
 
+printJournal :: (Integral a, Show a) =>
+    Day -> [(Account, AccountTransaction a)] -> IO ()
+printJournal date = printBox . renderJournal date
+
+renderJournal :: (Integral a, Show a) =>
+    Day -> [(Account, AccountTransaction a)] -> Box
+renderJournal date xs =
+    title // separator // body // separator // totals
+  where
+    body = hsep 2 top
+        . map formatColumns
+        . transpose
+        . (++) [headers]
+        . map (\ (x, y) -> journalRow x y)
+        $ xs
+    title = alignHoriz center2 width . text $ "Transaction for " ++ show date
+    width = cols body
+    separator = text $ replicate width '-'
+    headers = ["Account", "Debit", "Credit", "Description"]
+    totals = hsep 2 left $ text "Total" : map (text . Text.unpack) balances
+    balances =
+        let toAmount (TransactionAmount _ a) = a
+            (debits, credits) = mapPair (map toAmount) $ splitTransactions transactions
+            in [numberField . theSum $ debits
+                , numberField . theSum $ credits]
+    theSum = getSum . mconcat . map (Sum)
+    mapPair f = uncurry ((,) `on` f)
+    transactions = map (amount . snd) xs
+
+journalRow ::
+    (Integral a) =>
+    Account -> AccountTransaction a -> [Text.Text]
+journalRow Account{..} AccountTransaction{..} =
+        unAccountName name:transactionAmountRow amount
+
 renderLedger :: (Integral a) => Ledger a -> Box
 renderLedger ledger@(Ledger account transactions) =
     title // separator // body // separator // balance
@@ -96,9 +131,9 @@ transactionRow AccountTransaction{..} =
 
 transactionAmountRow :: (Integral a) => TransactionAmount a -> [Text.Text]
 transactionAmountRow (TransactionAmount Debit a) =
-    [Text.pack $ printf "%.2f" (fromIntegral a / 100 :: Double), Text.empty]
+    [numberField a, Text.empty]
 transactionAmountRow (TransactionAmount Credit a) =
-    [Text.empty, Text.pack $ printf "%.2f" (fromIntegral a / 100 :: Double)]
+    [Text.empty, numberField a]
 
 balanceRow :: (Integral a) => TransactionAmount a -> [Text.Text]
 balanceRow (TransactionAmount t a) =
@@ -110,3 +145,6 @@ accountRow Account{..} =
     [ Text.pack . show $ unAccountNumber number
     , unAccountName name
     , Text.pack $ show element]
+
+numberField :: (Integral a ) => a -> Text.Text
+numberField x = Text.pack $ printf "%.2f" (fromIntegral x / 100 :: Double)
