@@ -39,6 +39,7 @@ import Expense.Transaction
 import Expense.Account
 
 import Core.Utils
+import Core.Prompt
 import Core.Error
 import Utility.Absolute
 
@@ -111,7 +112,8 @@ createAccount = do
 addTransaction :: App ()
 addTransaction = do
     cfg <- ask
-    date <- lift $ promptExcept "Date: " (maybeToEither ParseError . readMaybe)
+    now <- liftIO $ today
+    date <- lift $ promptDate "Date: " now
     ts <- execStateT (transactionInteractive date) []
     bracket
         (liftIO . open $ connectionString cfg)
