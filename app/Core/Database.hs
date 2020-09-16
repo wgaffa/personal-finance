@@ -47,18 +47,9 @@ import Database.SQLite.Simple.FromField
 
 import qualified Data.Text as Text
 
-import Core.Error ( AccountError(AccountNotSaved) )
+import Core.Error
 import Expense.Transaction
-    ( TransactionAmount(..), TransactionType(..) )
 import Expense.Account
-    ( AccountTransaction(..),
-      Account(..),
-      AccountNumber(..),
-      AccountName(..),
-      AccountElement(Expenses, Asset),
-      accountName,
-      emptyAccountNumber,
-      accountNumber )
 
 instance ToField AccountNumber where
     toField = toField . unAccountNumber
