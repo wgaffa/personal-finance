@@ -209,6 +209,10 @@ transactionInteractive date = do
     st <- get
     put $ (account, transaction):st
 
+    -- output current state
+    liftIO $ printJournal date $
+        map (\ (x, y) -> (x, fmap unAbsoluteValue y))
+        $ (account, transaction):st
     let transactions = transaction : map snd st
         transformToNum = map (fmap unAbsoluteValue . amount) transactions
         currentBalance = balance transformToNum

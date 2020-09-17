@@ -1,3 +1,6 @@
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+
 module Expense.Account
     ( Ledger(..)
     , Account(..)
@@ -41,8 +44,12 @@ data AccountElement = Asset | Liability | Equity | Income | Expenses
     deriving (Ord, Eq, Enum, Bounded, Show, Read)
 
 -- | A string that contains atleast one printable character
-newtype AccountName = AccountName { unAccountName :: Text.Text }
-    deriving (Ord, Eq, Show)
+newtype AccountName = AccountName Text.Text
+    deriving (Ord, Eq)
+    deriving newtype (Show)
+
+unAccountName :: AccountName -> Text.Text
+unAccountName (AccountName n) = n
 
 -- | Smart constructor for 'AccountName'
 accountName :: Text.Text -> Maybe AccountName
@@ -51,8 +58,12 @@ accountName name
     | otherwise = Just $ AccountName name
 
 -- | An account number is any positive number
-newtype AccountNumber = AccountNumber { unAccountNumber :: Int }
-    deriving (Ord, Eq, Show)
+newtype AccountNumber = AccountNumber Int
+    deriving (Ord, Eq)
+    deriving newtype (Show)
+
+unAccountNumber :: AccountNumber -> Int
+unAccountNumber (AccountNumber x) = x
 
 emptyAccountNumber :: AccountNumber
 emptyAccountNumber = AccountNumber 0
