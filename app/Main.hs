@@ -125,7 +125,7 @@ addTransaction = do
     cfg <- ask
     now <- liftIO $ today
     date <- App $ lift $ promptDate "Date: " now
-    ts <- execStateT (transactionInteractive date) []
+    ts <- transactionInteractive date []
     App $ bracket
         (liftIO . open $ connectionString cfg)
         (liftIO . close)
@@ -206,28 +206,30 @@ createAccountTransactionAmount x m
 
 transactionInteractive ::
     Day
-    -> StateT [(Account, AccountTransaction (AbsoluteValue Int))] App ()
-transactionInteractive date = do
-    cfg <- ask
-    account <- lift . App $ bracket
-        (liftIO . open $ connectionString cfg)
+    -> [(Account, AccountTransaction (AbsoluteValue Int))]
+    -> App [(Account, AccountTransaction (AbsoluteValue Int))]
+transactionInteractive date accu =
+    ask
+    >>= (\ env -> App $ bracket
+        (liftIO . open $ connectionString env)
         (liftIO . close)
         (lift . findAccountInteractive)
-    transaction <- lift . App . lift $ AccountTransaction date
+    )
+    >>= (\ account -> (App . lift $ AccountTransaction date
         <$> promptExcept "Note: " (pure . emptyString)
         <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
-            <$> createTransactionAmountInteractive account)
-    st <- get
-    put $ (account, transaction):st
-
-    -- output current state
-    liftIO $ printJournal date $
-        map (\ (x, y) -> (x, fmap unAbsoluteValue y))
-        $ (account, transaction):st
-    let transactions = transaction : map snd st
-        transformToNum = map (fmap unAbsoluteValue . amount) transactions
-        currentBalance = balance transformToNum
-        in when (currentBalance /= 0) (transactionInteractive date)
+            <$> createTransactionAmountInteractive account))
+        >>= \ x -> pure $ (account, x):accu
+        )
+    >>= (\ entries ->
+        (liftIO $ printJournal date
+            $ map (\ (x, y) -> (x, fmap unAbsoluteValue y)) entries)
+        >> (pure . balance . map (fmap unAbsoluteValue . amount . snd) $ entries)
+        >>= (\ currentBalance ->
+                if currentBalance == 0
+                    then pure entries
+                    else transactionInteractive date entries)
+        )
   where
     emptyString xs
         | all isSpace xs = Nothing
