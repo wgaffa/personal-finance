@@ -1,4 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 module Main where
 
@@ -48,13 +52,20 @@ data AppEnvironment = AppEnvironment
     , command :: Command
     }
 
-type App = ReaderT AppEnvironment (ExceptT AccountError IO)
+newtype App a = App {
+    runApp :: ReaderT AppEnvironment (ExceptT AccountError IO) a
+    }
+    deriving (Functor, Applicative, Monad, MonadIO)
+    deriving newtype (MonadReader AppEnvironment)
 
 main :: IO ()
-main = do
-    env <- readEnvironment
-    runner <- runExceptT . flip runReaderT env . dispatcher . command $ env
-    either perror return runner
+main = readEnvironment
+    >>= \ env -> (runExceptT
+        . flip runReaderT env
+        . runApp
+        . dispatcher
+        . command $ env)
+    >>= either perror return
   where
     perror x = putStrLn $ "Error: " ++ show x
 
@@ -92,7 +103,7 @@ showAccounts = do
 showTransactions :: ShowOptions -> App ()
 showTransactions ShowOptions{..} =
     (fmap unAbsoluteValue
-        <$> ((liftEither
+        <$> ((App . liftEither
                 . maybeToEither InvalidNumber
                 . accountNumber $ filterAccount)
             >>= findLedger))
@@ -100,11 +111,11 @@ showTransactions ShowOptions{..} =
 
 createAccount :: App ()
 createAccount = do
-    acc <- lift createAccountInteractive
+    acc <- App $ lift $ createAccountInteractive
     liftIO $ putStrLn "Attempting to save account"
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
-    res <- lift $ finally (saveAccount acc conn) (liftIO $ close conn)
+    res <- App $ lift $ finally (saveAccount acc conn) (liftIO $ close conn)
     liftIO $ putStr "Saved account: "
             >> printAccount res
             >> putChar '\n'
@@ -113,9 +124,9 @@ addTransaction :: App ()
 addTransaction = do
     cfg <- ask
     now <- liftIO $ today
-    date <- lift $ promptDate "Date: " now
+    date <- App $ lift $ promptDate "Date: " now
     ts <- execStateT (transactionInteractive date) []
-    bracket
+    App $ bracket
         (liftIO . open $ connectionString cfg)
         (liftIO . close)
         (liftIO . \ conn -> do
@@ -144,7 +155,7 @@ findLedger number = do
                     <$> allAccountTransactions x conn
                 Nothing -> pure . Left $ AccountNotFound
         )
-    liftEither ledger
+    App $ liftEither ledger
 
 createAccountInteractive :: ExceptT AccountError IO Account
 createAccountInteractive = Account
@@ -198,11 +209,11 @@ transactionInteractive ::
     -> StateT [(Account, AccountTransaction (AbsoluteValue Int))] App ()
 transactionInteractive date = do
     cfg <- ask
-    account <- lift $ bracket
+    account <- lift . App $ bracket
         (liftIO . open $ connectionString cfg)
         (liftIO . close)
         (lift . findAccountInteractive)
-    transaction <- lift . lift $ AccountTransaction date
+    transaction <- lift . App . lift $ AccountTransaction date
         <$> promptExcept "Note: " (pure . emptyString)
         <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
             <$> createTransactionAmountInteractive account)
