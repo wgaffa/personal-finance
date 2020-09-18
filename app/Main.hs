@@ -17,7 +17,9 @@ import Data.Time (Day)
 import Data.Either (isLeft)
 
 import Control.Monad (when, forM_)
-import Control.Monad.Catch ( bracket, finally )
+import Control.Monad.Catch
+    ( MonadThrow, MonadCatch, MonadMask
+    , bracket, finally)
 import Control.Monad.Except
     ( MonadTrans(lift),
       MonadIO(liftIO),
@@ -58,7 +60,8 @@ newtype App a = App {
     runApp :: ReaderT AppEnvironment (ExceptT AccountError IO) a
     }
     deriving (Functor, Applicative, Monad, MonadIO)
-    deriving newtype (MonadReader AppEnvironment)
+    deriving newtype (MonadReader AppEnvironment, MonadError AccountError)
+    deriving newtype (MonadThrow, MonadCatch, MonadMask)
 
 main :: IO ()
 main = readEnvironment
@@ -105,7 +108,7 @@ showAccounts = do
 showTransactions :: ShowOptions -> App ()
 showTransactions ShowOptions{..} =
     (fmap unAbsoluteValue
-        <$> ((App . liftEither
+        <$> ((liftEither
                 . maybeToEither InvalidNumber
                 . accountNumber $ filterAccount)
             >>= findLedger))
@@ -113,11 +116,11 @@ showTransactions ShowOptions{..} =
 
 createAccount :: App ()
 createAccount = do
-    acc <- App $ createAccountInteractive
+    acc <- createAccountInteractive
     liftIO $ putStrLn "Attempting to save account"
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
-    res <- App $ finally (saveAccount acc conn) (liftIO $ close conn)
+    res <- finally (saveAccount acc conn) (liftIO $ close conn)
     liftIO $ putStr "Saved account: "
             >> printAccount res
             >> putChar '\n'
@@ -126,9 +129,9 @@ addTransaction :: App ()
 addTransaction = do
     cfg <- ask
     now <- liftIO $ today
-    date <- App $ promptDate "Date: " now
+    date <- promptDate "Date: " now
     ts <- transactionInteractive date []
-    App $ bracket
+    bracket
         (liftIO . open $ connectionString cfg)
         (liftIO . close)
         (liftIO . \ conn -> do
@@ -157,7 +160,7 @@ findLedger number = do
                     <$> allAccountTransactions x conn
                 Nothing -> pure . Left $ AccountNotFound
         )
-    App $ liftEither ledger
+    liftEither ledger
 
 createAccountInteractive ::
     (MonadError AccountError m, MonadIO m)
@@ -217,12 +220,12 @@ transactionInteractive ::
     -> App [(Account, AccountTransaction (AbsoluteValue Int))]
 transactionInteractive date accu =
     ask
-    >>= (\ env -> App $ bracket
+    >>= (\ env -> bracket
         (liftIO . open $ connectionString env)
         (liftIO . close)
         (findAccountInteractive)
     )
-    >>= (\ account -> (App $ AccountTransaction date
+    >>= (\ account -> (AccountTransaction date
         <$> promptExcept "Note: " (pure . emptyString)
         <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
             <$> createTransactionAmountInteractive account))
