@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Core.Database
     ( saveAccount
@@ -97,17 +98,20 @@ instance ToField AccountName where
 instance ToField AccountElement where
     toField = toField . show
 
-saveAccount :: Account -> Connection -> ExceptT AccountError IO Account
+saveAccount ::
+    (MonadError AccountError m, MonadIO m)
+    => Account -> Connection -> m Account
 saveAccount acc@Account{..} conn =
     checkAccount number conn
-    >> lift (insertAccount acc conn)
-    >> ExceptT (return $ Right acc)
+    >> liftIO (insertAccount acc conn)
+    >> return acc
 
 saveTransaction ::
-    Account
+    (MonadError AccountError m, MonadIO m)
+    => Account
     -> AccountTransaction Int
     -> Connection
-    -> ExceptT AccountError IO ()
+    -> m ()
 saveTransaction Account{..} AccountTransaction{..} conn = do
     typeId <- liftIO $ runMaybeT $
         transactionTypeId (fst transactionTuple) conn
@@ -133,7 +137,9 @@ allAccountTransactions Account{..} conn =
         \inner join transactiontypes ty on t.type_id=ty.id \
         \where account_id=? order by t.date"
 
-checkAccount :: AccountNumber -> Connection -> ExceptT AccountError IO ()
+checkAccount ::
+    (MonadError AccountError m, MonadIO m)
+    => AccountNumber -> Connection -> m ()
 checkAccount number conn =
     liftIO (accountExists number conn)
     >>= \x -> when x (throwError $ AccountNotSaved "account number already exists")
@@ -155,32 +161,38 @@ allAccounts conn = query_ conn q
     \inner join accountelement e on a.element_id=e.id \
     \order by a.id"
 
-findAccount :: AccountNumber -> Connection -> MaybeT IO Account
+findAccount ::
+    (MonadFail m, MonadIO m)
+    => AccountNumber -> Connection -> m Account
 findAccount number conn = do
     res <- liftIO (query conn q params :: IO [Account])
     case res of
         (x:_) -> return x
-        _ -> MaybeT . return $ Nothing
+        _ -> fail "no record found"
   where
     q = "select a.id, a.name, e.name from accounts a \
         \inner join accountelement e on a.element_id=e.id where a.id=?"
     params = Only number
 
 -- | Find the id of an account element in the database
-elementId :: AccountElement -> Connection -> MaybeT IO Int
+elementId ::
+    (MonadFail m, MonadIO m)
+    => AccountElement -> Connection -> m Int
 elementId element conn = do
     r <- liftIO $ query conn q (Only (show element))
     case r of
         (x:_) -> return . fromOnly $ x
-        _ -> MaybeT . return $ Nothing
+        _ -> fail "no record found"
   where q = "select id from AccountElement where name=?"
 
-transactionTypeId :: TransactionType -> Connection -> MaybeT IO Int
+transactionTypeId ::
+    (MonadFail m, MonadIO m)
+    => TransactionType -> Connection -> m Int
 transactionTypeId transaction conn = do
     r <- liftIO $ query conn q (Only (show transaction))
     case r of
         (x:_) -> return . fromOnly $ x
-        _ -> MaybeT . return $ Nothing
+        _ -> fail "no record found"
   where
     q = "select id from TransactionTypes where name=?"
 

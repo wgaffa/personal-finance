@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Core.Prompt
     ( prompt
     , promptDate
@@ -15,14 +17,18 @@ import Control.Monad.Except
 import Core.Error
 import Core.Utils
 
-promptDate :: String -> Day -> ExceptT AccountError IO Day
+promptDate ::
+    (MonadError AccountError m, MonadIO m)
+    => String -> Day -> m Day
 promptDate text date =
     (liftIO . prompt $ text)
     >>= \ xs -> if (all isSpace xs)
                 then return date
                 else liftEither $ maybeToEither ParseError . readMaybe  $ xs
 
-promptExcept :: String -> (String -> Either e a) -> ExceptT e IO a
+promptExcept ::
+    (MonadError e m, MonadIO m)
+    => String -> (String -> Either e a) -> m a
 promptExcept text f =
     (liftIO . prompt $ text)
     >>= liftEither . f

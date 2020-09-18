@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Main where
 
@@ -20,6 +21,7 @@ import Control.Monad.Catch ( bracket, finally )
 import Control.Monad.Except
     ( MonadTrans(lift),
       MonadIO(liftIO),
+      MonadError(),
       ExceptT,
       liftEither,
       runExceptT )
@@ -111,11 +113,11 @@ showTransactions ShowOptions{..} =
 
 createAccount :: App ()
 createAccount = do
-    acc <- App $ lift $ createAccountInteractive
+    acc <- App $ createAccountInteractive
     liftIO $ putStrLn "Attempting to save account"
     cfg <- ask
     conn <- liftIO . open $ connectionString cfg
-    res <- App $ lift $ finally (saveAccount acc conn) (liftIO $ close conn)
+    res <- App $ finally (saveAccount acc conn) (liftIO $ close conn)
     liftIO $ putStr "Saved account: "
             >> printAccount res
             >> putChar '\n'
@@ -124,7 +126,7 @@ addTransaction :: App ()
 addTransaction = do
     cfg <- ask
     now <- liftIO $ today
-    date <- App $ lift $ promptDate "Date: " now
+    date <- App $ promptDate "Date: " now
     ts <- transactionInteractive date []
     App $ bracket
         (liftIO . open $ connectionString cfg)
@@ -157,7 +159,9 @@ findLedger number = do
         )
     App $ liftEither ledger
 
-createAccountInteractive :: ExceptT AccountError IO Account
+createAccountInteractive ::
+    (MonadError AccountError m, MonadIO m)
+    => m Account
 createAccountInteractive = Account
     <$> promptExcept "Number: "
         (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
@@ -165,7 +169,10 @@ createAccountInteractive = Account
         (maybeToEither InvalidName . accountName . Text.pack)
     <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
 
-findAccountInteractive :: Connection -> ExceptT AccountError IO Account
+findAccountInteractive ::
+    (MonadError AccountError m, MonadIO m)
+    => Connection
+    -> m Account
 findAccountInteractive conn =
     promptExcept "Account number: "
         (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
@@ -173,9 +180,9 @@ findAccountInteractive conn =
     >>= liftEither . maybeToEither AccountNotFound
 
 createTransactionInteractive ::
-    (Accountable a) =>
+    (Accountable a, MonadError AccountError m, MonadIO m) =>
     a
-    -> ExceptT AccountError IO (AccountTransaction (AbsoluteValue Int))
+    -> m (AccountTransaction (AbsoluteValue Int))
 createTransactionInteractive x =
     AccountTransaction
     <$> promptExcept "Date: "
@@ -190,9 +197,9 @@ createTransactionInteractive x =
         | otherwise = Just xs
 
 createTransactionAmountInteractive ::
-    (Accountable a)
+    (Accountable a, MonadError AccountError m, MonadIO m)
     => a
-    -> ExceptT AccountError IO (TransactionAmount (AbsoluteValue Double))
+    -> m (TransactionAmount (AbsoluteValue Double))
 createTransactionAmountInteractive x =
     createAccountTransactionAmount x
     <$> promptExcept "Amount: " (maybeToEither InvalidNumber . readMaybe)
@@ -213,9 +220,9 @@ transactionInteractive date accu =
     >>= (\ env -> App $ bracket
         (liftIO . open $ connectionString env)
         (liftIO . close)
-        (lift . findAccountInteractive)
+        (findAccountInteractive)
     )
-    >>= (\ account -> (App . lift $ AccountTransaction date
+    >>= (\ account -> (App $ AccountTransaction date
         <$> promptExcept "Note: " (pure . emptyString)
         <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
             <$> createTransactionAmountInteractive account))
