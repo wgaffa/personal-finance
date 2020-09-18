@@ -219,19 +219,20 @@ transactionInteractive ::
     -> [(Account, AccountTransaction (AbsoluteValue Int))]
     -> App [(Account, AccountTransaction (AbsoluteValue Int))]
 transactionInteractive date accu =
-    ask
-    >>= (\ env -> bracket
-        (liftIO . open $ connectionString env)
-        (liftIO . close)
-        (findAccountInteractive)
-    )
-    >>= (\ account -> (AccountTransaction date
-        <$> promptExcept "Note: " (pure . emptyString)
-        <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
-            <$> createTransactionAmountInteractive account))
+    ask >>= findAccountInDatabase >>= readAccount >>= readEntries
+  where
+    findAccountInDatabase env =
+        bracket
+            (liftIO . open $ connectionString env)
+            (liftIO . close)
+            (findAccountInteractive)
+    readAccount account =
+        (AccountTransaction date
+            <$> promptExcept "Note: " (pure . emptyString)
+            <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
+                <$> createTransactionAmountInteractive account))
         >>= \ x -> pure $ (account, x):accu
-        )
-    >>= (\ entries ->
+    readEntries entries =
         (liftIO $ printJournal date
             $ map (\ (x, y) -> (x, fmap unAbsoluteValue y)) entries)
         >> (pure . balance . map (fmap unAbsoluteValue . amount . snd) $ entries)
@@ -239,8 +240,6 @@ transactionInteractive date accu =
                 if currentBalance == 0
                     then pure entries
                     else transactionInteractive date entries)
-        )
-  where
     emptyString xs
         | all isSpace xs = Nothing
         | otherwise = Just xs
