@@ -111,7 +111,12 @@ showTransactions ShowOptions{..} =
         <$> ((liftEither
                 . maybeToEither InvalidNumber
                 . accountNumber $ filterAccount)
-            >>= findLedger))
+            >>= (\ accountNumber ->
+                ask >>= \ cfg -> bracket
+                    (liftIO . open $ connectionString cfg)
+                    (liftIO . close)
+                    (liftIO . findLedger accountNumber))
+            ))
     >>= liftIO . printLedger
 
 createAccount :: App ()
@@ -145,22 +150,6 @@ addTransaction = do
                         error "Unexpected error when saving transaction"
         )
     return ()
-
-findLedger :: (FromField a) => AccountNumber -> App (Ledger a)
-findLedger number = do
-    cfg <- ask
-    ledger <- liftIO $ bracket
-        (open $ connectionString cfg)
-        close
-        (\conn -> do
-            account <- runMaybeT $ findAccount number conn
-            case account of
-                Just x ->
-                    Right . Ledger x
-                    <$> allAccountTransactions x conn
-                Nothing -> pure . Left $ AccountNotFound
-        )
-    liftEither ledger
 
 createAccountInteractive ::
     (MonadError AccountError m, MonadIO m)

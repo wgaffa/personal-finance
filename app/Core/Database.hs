@@ -6,6 +6,7 @@ module Core.Database
     ( saveAccount
     , saveTransaction
     , findAccount
+    , findLedger
     , allAccounts
     , allAccountTransactions
     , updateDatabase
@@ -14,6 +15,7 @@ module Core.Database
 import Data.Maybe (fromMaybe, isJust)
 
 import Control.Monad (when)
+-- import Control.Monad.Catch()
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe ( MaybeT(..) )
 import Control.Monad.Except
@@ -173,6 +175,13 @@ findAccount number conn = do
     q = "select a.id, a.name, e.name from accounts a \
         \inner join accountelement e on a.element_id=e.id where a.id=?"
     params = Only number
+
+findLedger ::
+    (MonadFail m, MonadIO m, FromField a)
+    => AccountNumber -> Connection -> m (Ledger a)
+findLedger number conn =
+    liftIO $ (findAccount number conn)
+    >>= (\ account -> Ledger account <$> allAccountTransactions account conn)
 
 -- | Find the id of an account element in the database
 elementId ::
