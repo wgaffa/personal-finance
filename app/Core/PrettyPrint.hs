@@ -101,7 +101,8 @@ journalRow ::
     (Integral a) =>
     Account -> AccountTransaction a -> [Text.Text]
 journalRow Account{..} AccountTransaction{..} =
-        unAccountName name:transactionAmountRow amount
+        (unAccountName name:transactionAmountRow amount) ++
+            [maybe Text.empty Text.pack description]
 
 renderLedger :: (Integral a) => Ledger a -> Box
 renderLedger ledger@(Ledger account transactions) =
