@@ -91,26 +91,17 @@ readEnvironment = do
 
 updateDb :: App ()
 updateDb = do
-    cfg <- ask
-    liftIO $ bracket
-        (open $ connectionString cfg)
-        close
-        updateDatabase
+    withDatabase $ liftIO . updateDatabase
     liftIO $ putStrLn "Database updated"
 
 showAccounts :: App ()
 showAccounts = do
-    cfg <- ask
-    liftIO $ bracket
-      (open $ connectionString cfg)
-      (close)
-      (\ conn -> do
+    withDatabase $ liftIO . \ conn -> do
         accounts <- allAccounts conn
         ledgers <- forM accounts 
           (\ Account{..} -> findLedger number conn) :: IO [Ledger Int]
         let triage = map (\ (Ledger a ts) -> (a, accountBalance a ts)) ledgers
             in putStr $ renderTriageBalance triage 
-        )
   where
     accountBalance x = value . toBalance x id . balance . map amount
     value (TransactionAmount _ a) = a
@@ -122,43 +113,33 @@ showTransactions ShowOptions{..} =
                 . maybeToEither InvalidNumber
                 . accountNumber $ filterAccount)
             >>= (\ accountNumber ->
-                ask >>= \ cfg -> bracket
-                    (liftIO . open $ connectionString cfg)
-                    (liftIO . close)
-                    (liftIO . findLedger accountNumber))
-            ))
+                withDatabase (liftIO . findLedger accountNumber)
+            )))
     >>= liftIO . printLedger
 
 createAccount :: App ()
 createAccount = do
     acc <- createAccountInteractive
     liftIO $ putStrLn "Attempting to save account"
-    cfg <- ask
-    conn <- liftIO . open $ connectionString cfg
-    res <- finally (saveAccount acc conn) (liftIO $ close conn)
+    res <- withDatabase (saveAccount acc)
     liftIO $ putStr "Saved account: "
             >> printAccount res
             >> putChar '\n'
 
 addTransaction :: App ()
 addTransaction = do
-    cfg <- ask
     now <- liftIO $ today
     date <- promptDate "Date: " now
     ts <- transactionInteractive date []
-    bracket
-        (liftIO . open $ connectionString cfg)
-        (liftIO . close)
-        (liftIO . \ conn -> do
-            withTransaction conn $ do
-                forM_ ts $ \ acc -> do
-                    res <- runExceptT $ saveTransaction
-                        (fst acc)
-                        (unAbsoluteValue <$> snd acc)
-                         conn
-                    when (isLeft res) $
-                        error "Unexpected error when saving transaction"
-        )
+    withDatabase $ liftIO . \ conn -> do
+        withTransaction conn $ do
+            forM_ ts $ \ acc -> do
+                res <- runExceptT $ saveTransaction
+                    (fst acc)
+                    (unAbsoluteValue <$> snd acc)
+                     conn
+                when (isLeft res) $
+                    error "Unexpected error when saving transaction"
     return ()
 
 createAccountInteractive ::
@@ -218,13 +199,10 @@ transactionInteractive ::
     -> [(Account, AccountTransaction (AbsoluteValue Int))]
     -> App [(Account, AccountTransaction (AbsoluteValue Int))]
 transactionInteractive date accu =
-    ask >>= findAccountInDatabase >>= readAccount >>= readEntries
+    findAccountInDatabase >>= readAccount >>= readEntries
   where
-    findAccountInDatabase env =
-        bracket
-            (liftIO . open $ connectionString env)
-            (liftIO . close)
-            (findAccountInteractive)
+    findAccountInDatabase =
+        withDatabase findAccountInteractive
     readAccount account =
         (AccountTransaction date
             <$> promptExcept "Note: " (pure . emptyString)
@@ -243,3 +221,8 @@ transactionInteractive date accu =
         | all isSpace xs = Nothing
         | otherwise = Just xs
 
+withDatabase :: (Connection -> App a) -> App a
+withDatabase f = ask >>= \ cfg -> bracket 
+    (liftIO . open $ connectionString cfg)
+    (liftIO . close)
+    (f)
