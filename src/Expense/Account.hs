@@ -19,6 +19,7 @@ module Expense.Account
     , ledgerTransaction
     , unAccountName
     , unAccountNumber
+    , toBalance
     ) where
 
 import Data.Char ( isSpace )

@@ -6,6 +6,7 @@ module Core.PrettyPrint
     , printJournal
     , printListAccounts
     , printLedger
+    , renderTriageBalance
     , formatColumns
     ) where
 
@@ -27,6 +28,7 @@ import Text.PrettyPrint.Boxes
       hsep,
       left,
       printBox,
+      render,
       text,
       top,
       vcat,
@@ -64,6 +66,25 @@ printListAccounts =
     . map formatColumns
     . transpose
     . map accountRow
+
+renderTriageBalance ::
+    (Integral a, Show a)
+    => [(Account, a)] -> String
+renderTriageBalance xs =
+    render table
+  where
+    table = body
+    headers = ["Id", "Name", "Element", "Balance"]
+    body = hsep 2 top
+      . map formatColumns
+      . transpose
+      . (++) [headers]
+      . map (sequenceA row) $ xs
+    row =
+        [ Text.pack . show . number . fst,
+          unAccountName . name . fst,
+          Text.pack . show . element . fst,
+          numberField . snd]
 
 printLedger :: (Integral a) => Ledger a -> IO ()
 printLedger = printBox . renderLedger

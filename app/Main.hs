@@ -16,7 +16,7 @@ import Text.Read (readMaybe)
 import Data.Time (Day)
 import Data.Either (isLeft)
 
-import Control.Monad (when, forM_)
+import Control.Monad (when, forM_, forM)
 import Control.Monad.Catch
     ( MonadThrow, MonadCatch, MonadMask
     , bracket, finally)
@@ -101,9 +101,19 @@ updateDb = do
 showAccounts :: App ()
 showAccounts = do
     cfg <- ask
-    conn <- liftIO . open $ connectionString cfg
-    accounts <- liftIO $ allAccounts conn
-    liftIO $ printListAccounts accounts
+    liftIO $ bracket
+      (open $ connectionString cfg)
+      (close)
+      (\ conn -> do
+        accounts <- allAccounts conn
+        ledgers <- forM accounts 
+          (\ Account{..} -> findLedger number conn) :: IO [Ledger Int]
+        let triage = map (\ (Ledger a ts) -> (a, accountBalance a ts)) ledgers
+            in putStr $ renderTriageBalance triage 
+        )
+  where
+    accountBalance x = value . toBalance x id . balance . map amount
+    value (TransactionAmount _ a) = a
 
 showTransactions :: ShowOptions -> App ()
 showTransactions ShowOptions{..} =
@@ -232,3 +242,4 @@ transactionInteractive date accu =
     emptyString xs
         | all isSpace xs = Nothing
         | otherwise = Just xs
+
