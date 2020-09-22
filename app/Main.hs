@@ -202,7 +202,10 @@ transactionInteractive date accu =
     findAccountInDatabase >>= readAccount >>= readEntries
   where
     findAccountInDatabase =
-        withDatabase findAccountInteractive
+        withDatabase $ \ conn -> do
+          acc <- findAccountInteractive conn
+          liftIO $ printAccount acc
+          return acc
     readAccount account =
         (AccountTransaction date
             <$> promptExcept "Note: " (pure . emptyString)
