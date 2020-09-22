@@ -1,6 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -9,6 +8,7 @@ module Main where
 
 import System.IO ()
 
+import Data.Bifunctor (second)
 import Data.Maybe (fromMaybe)
 import Data.Char ( isSpace )
 import qualified Data.Text as Text
@@ -128,7 +128,7 @@ createAccount = do
 
 addTransaction :: App ()
 addTransaction = do
-    now <- liftIO $ today
+    now <- liftIO today
     date <- promptDate "Date: " now
     ts <- transactionInteractive date []
     withDatabase $ liftIO . \ conn -> do
@@ -213,8 +213,9 @@ transactionInteractive date accu =
                 <$> createTransactionAmountInteractive account))
         >>= \ x -> pure $ (account, x):accu
     readEntries entries =
-        (liftIO $ printJournal date
-            $ map (\ (x, y) -> (x, fmap unAbsoluteValue y)) entries)
+        liftIO 
+            (printJournal date
+                $ map (second (fmap unAbsoluteValue)) entries)
         >> (pure . balance . map (fmap unAbsoluteValue . amount . snd) $ entries)
         >>= (\ currentBalance ->
                 if currentBalance == 0
@@ -228,4 +229,4 @@ withDatabase :: (Connection -> App a) -> App a
 withDatabase f = ask >>= \ cfg -> bracket 
     (liftIO . open $ connectionString cfg)
     (liftIO . close)
-    (f)
+    f

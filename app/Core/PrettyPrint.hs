@@ -102,7 +102,7 @@ renderJournal date xs =
         . map formatColumns
         . transpose
         . (++) [headers]
-        . map (\ (x, y) -> journalRow x y)
+        . map (uncurry journalRow)
         $ xs
     title = alignHoriz center2 width . text $ "Transaction for " ++ show date
     width = cols body
@@ -114,7 +114,7 @@ renderJournal date xs =
             (debits, credits) = mapPair (map toAmount) $ splitTransactions transactions
             in [numberField . theSum $ debits
                 , numberField . theSum $ credits]
-    theSum = getSum . mconcat . map (Sum)
+    theSum = getSum . mconcat . map Sum
     mapPair f = uncurry ((,) `on` f)
     transactions = map (amount . snd) xs
 

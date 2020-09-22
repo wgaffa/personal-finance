@@ -180,7 +180,7 @@ findLedger ::
     (MonadFail m, MonadIO m, FromField a)
     => AccountNumber -> Connection -> m (Ledger a)
 findLedger number conn =
-    liftIO $ (findAccount number conn)
+    liftIO $ findAccount number conn
     >>= (\ account -> Ledger account <$> allAccountTransactions account conn)
 
 -- | Find the id of an account element in the database

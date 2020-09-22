@@ -22,7 +22,7 @@ promptDate ::
     => String -> Day -> m Day
 promptDate text date =
     (liftIO . prompt $ text)
-    >>= \ xs -> if (all isSpace xs)
+    >>= \ xs -> if all isSpace xs
                 then return date
                 else liftEither $ maybeToEither ParseError . readMaybe  $ xs
 
