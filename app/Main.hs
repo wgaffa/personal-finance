@@ -98,10 +98,10 @@ showAccounts :: App ()
 showAccounts = do
     withDatabase $ liftIO . \ conn -> do
         accounts <- allAccounts conn
-        ledgers <- forM accounts 
+        ledgers <- forM accounts
           (\ Account{..} -> findLedger number conn) :: IO [Ledger Int]
         let triage = map (\ (Ledger a ts) -> (a, accountBalance a ts)) ledgers
-            in putStr $ renderTriageBalance triage 
+            in putStr $ renderTriageBalance triage
   where
     accountBalance x = value . toBalance x id . balance . map amount
     value (TransactionAmount _ a) = a
@@ -213,7 +213,7 @@ transactionInteractive date accu =
                 <$> createTransactionAmountInteractive account))
         >>= \ x -> pure $ (account, x):accu
     readEntries entries =
-        liftIO 
+        liftIO
             (printJournal date
                 $ map (second (fmap unAbsoluteValue)) entries)
         >> (pure . balance . map (fmap unAbsoluteValue . amount . snd) $ entries)
@@ -226,8 +226,7 @@ transactionInteractive date accu =
         | otherwise = Just xs
 
 withDatabase :: (Connection -> App a) -> App a
-withDatabase f = ask >>= \ cfg -> bracket 
+withDatabase f = ask >>= \ cfg -> bracket
     (liftIO . open $ connectionString cfg)
     (liftIO . close)
     f
-
