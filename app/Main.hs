@@ -172,7 +172,7 @@ createTransactionInteractive x =
         (maybeToEither ParseError . readMaybe)
     <*> promptExcept "Description: "
         (pure . emptyString)
-    <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
+    <*> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
         <$> createTransactionAmountInteractive x)
   where
     emptyString xs
@@ -209,7 +209,7 @@ transactionInteractive date accu =
     readAccount account =
         (AccountTransaction date
             <$> promptExcept "Note: " (pure . emptyString)
-            <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
+            <*> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
                 <$> createTransactionAmountInteractive account))
         >>= \ x -> pure $ (account, x):accu
     readEntries entries =
@@ -230,3 +230,4 @@ withDatabase f = ask >>= \ cfg -> bracket
     (liftIO . open $ connectionString cfg)
     (liftIO . close)
     f
+
