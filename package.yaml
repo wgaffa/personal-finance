@@ -24,6 +24,7 @@ dependencies:
 - text
 - containers
 - time
+- uuid
 
 library:
   source-dirs: src
@@ -46,7 +47,6 @@ executables:
     - exceptions
     - boxes
     - gitrev
-    - uuid
 
 tests:
   expense-tracker-test:

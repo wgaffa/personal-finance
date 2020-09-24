@@ -15,6 +15,8 @@ import qualified Data.Text as Text
 import Text.Read (readMaybe)
 import Data.Time (Day)
 import Data.Either (isLeft)
+import Data.UUID (UUID, nil)
+import Data.UUID.V4 (nextRandom)
 
 import Control.Monad (when, forM_, forM)
 import Control.Monad.Catch
@@ -54,6 +56,7 @@ import Utility.Absolute
 data AppEnvironment = AppEnvironment
     { connectionString :: String
     , command :: Command
+    , newId :: UUID
     }
 
 newtype App a = App {
@@ -84,9 +87,11 @@ dispatcher UpdateDatabase = updateDb
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
     Options {..} <- execArgParser
-    return AppEnvironment {
-        connectionString = fromMaybe "db.sqlite3" dbConnection
+    tId <- nextRandom
+    return AppEnvironment
+        { connectionString = fromMaybe "db.sqlite3" dbConnection
         , command = optCommand
+        , newId = tId
         }
 
 updateDb :: App ()
@@ -162,23 +167,6 @@ findAccountInteractive conn =
     >>= liftIO . runMaybeT . flip findAccount conn
     >>= liftEither . maybeToEither AccountNotFound
 
-createTransactionInteractive ::
-    (Accountable a, MonadError AccountError m, MonadIO m) =>
-    a
-    -> m (AccountTransaction (AbsoluteValue Int))
-createTransactionInteractive x =
-    AccountTransaction
-    <$> promptExcept "Date: "
-        (maybeToEither ParseError . readMaybe)
-    <*> promptExcept "Description: "
-        (pure . emptyString)
-    <*> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
-        <$> createTransactionAmountInteractive x)
-  where
-    emptyString xs
-        | all isSpace xs = Nothing
-        | otherwise = Just xs
-
 createTransactionAmountInteractive ::
     (Accountable a, MonadError AccountError m, MonadIO m)
     => a
@@ -207,10 +195,12 @@ transactionInteractive date accu =
           liftIO $ printAccount acc
           return acc
     readAccount account =
-        (AccountTransaction date
-            <$> promptExcept "Note: " (pure . emptyString)
-            <*> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
-                <$> createTransactionAmountInteractive account))
+        ask >>= \ env ->
+            AccountTransaction date
+                <$> promptExcept "Note: " (pure . emptyString)
+                <*> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
+                    <$> createTransactionAmountInteractive account)
+                <*> (pure $ newId env)
         >>= \ x -> pure $ (account, x):accu
     readEntries entries =
         liftIO

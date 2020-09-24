@@ -24,7 +24,7 @@ module Expense.Account
 
 import Data.Char ( isSpace )
 import qualified Data.Text as Text
-
+import Data.UUID (UUID)
 import Data.Time (Day)
 
 import Expense.Transaction
@@ -117,6 +117,7 @@ data AccountTransaction a = AccountTransaction {
     date :: Day -- ^ Date of the transaction
     , description :: Maybe String -- ^ Description for the transaction
     , amount :: TransactionAmount a -- ^ Amount debited or credited
+    , transactionId :: UUID -- ^ The transaction id
 } deriving (Show)
 
 instance Functor AccountTransaction where
