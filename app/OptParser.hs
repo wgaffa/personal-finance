@@ -11,6 +11,7 @@ import Control.Applicative ( optional )
 
 import Options.Applicative
     ( optional,
+      switch,
       argument,
       auto,
       command,
@@ -38,7 +39,10 @@ data Options = Options
     , optCommand :: Command
     }
 
-newtype ShowOptions = ShowOptions { filterAccount :: Int }
+data ShowOptions = ShowOptions
+    { filterAccount :: Int
+    , showId :: Bool
+    }
 
 data Command
     = List
@@ -88,6 +92,8 @@ showOptions :: Parser ShowOptions
 showOptions =
     ShowOptions
     <$> argument auto (metavar "ACCOUNTID")
+    <*> switch
+      (long "show-uuid" <> help "Show UUID")
 
 options :: Parser Options
 options =
