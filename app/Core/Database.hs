@@ -13,9 +13,9 @@ module Core.Database
     ) where
 
 import Data.Maybe (fromMaybe, isJust)
+import Data.UUID (nil, toString)
 
 import Control.Monad (when)
--- import Control.Monad.Catch()
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe ( MaybeT(..) )
 import Control.Monad.Except
@@ -246,7 +246,7 @@ tables conn = map fromOnly <$> query_ conn q
 
 schema :: [[Connection -> IO ()]]
 schema =
-    [[
+    [[ -- version 1
       flip execute_ "PRAGMA foreign_keys = ON"
     , flip execute_ "CREATE TABLE AccountElement (\
         \ id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
@@ -259,7 +259,7 @@ schema =
         "INSERT INTO AccountElement (name) VALUES (?)"
         (map (Only . show) [Asset .. Expenses])
     ]
-    , [
+    , [ -- version 2
       flip execute_ "CREATE TABLE TransactionTypes (\
         \id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
     , \conn -> executeMany conn
@@ -274,6 +274,11 @@ schema =
         \ FOREIGN KEY (account_id) REFERENCES accounts (id) \
         \ FOREIGN KEY (type_id) REFERENCES transactiontypes (id))"
     ]
-    , [
+    , [ -- version 3
         flip execute_ "ALTER TABLE Transactions ADD description TEXT"
-    ]]
+    ]
+    , [ -- version 4
+        flip execute_ 
+            ("ALTER TABLE Transactions ADD transaction_id\ 
+            \ TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'")
+      ]]

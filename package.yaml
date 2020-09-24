@@ -46,6 +46,7 @@ executables:
     - exceptions
     - boxes
     - gitrev
+    - uuid
 
 tests:
   expense-tracker-test:
