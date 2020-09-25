@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
@@ -15,7 +16,7 @@ import qualified Data.Text as Text
 import Text.Read (readMaybe)
 import Data.Time (Day)
 import Data.Either (isLeft)
-import Data.UUID (UUID, nil)
+import Data.UUID (UUID, nil, toText)
 import Data.UUID.V4 (nextRandom)
 
 import Control.Monad (when, forM_, forM)
@@ -120,7 +121,24 @@ showTransactions ShowOptions{..} =
             >>= (\ accountNumber ->
                 withDatabase (liftIO . findLedger accountNumber)
             )))
-    >>= liftIO . printLedger
+    >>= liftIO . putStrLn . renderLedger columns headers
+  where
+    headers = takeRelevant allHeaders
+    allHeaders = ["Name", "Debit", "Credit", "Description", "Id"]
+    columns = takeRelevant allColumns
+    takeRelevant xs = if showId then xs else init xs
+    allColumns = 
+      [ Text.pack . show . date
+      , debitColumn
+      , creditColumn
+      , maybe Text.empty Text.pack . description
+      , toText . transactionId
+      ]
+    debitColumn AccountTransaction{..} = toAmount Debit amount
+    creditColumn AccountTransaction{..} = toAmount Credit amount
+    toAmount expected (TransactionAmount t a)
+      | expected == t = numberField a
+      | otherwise = Text.empty
 
 createAccount :: App ()
 createAccount = do

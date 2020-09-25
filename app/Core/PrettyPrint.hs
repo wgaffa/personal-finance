@@ -5,13 +5,17 @@ module Core.PrettyPrint
     ( printAccount
     , printJournal
     , printListAccounts
-    , printLedger
+    , renderLedger
     , renderTriageBalance
+    , renderCompleteLedger
     , formatColumns
+    , transactionAmountRow
+    , numberField
     ) where
 
 import Prelude hiding ((<>))
 
+import Data.UUID
 import Data.Time (Day)
 import qualified Data.Text as Text
 
@@ -86,9 +90,6 @@ renderTriageBalance xs =
           Text.pack . show . element . fst,
           numberField . snd]
 
-printLedger :: (Integral a) => Ledger a -> IO ()
-printLedger = printBox . renderLedger
-
 printJournal :: (Integral a, Show a) =>
     Day -> [(Account, AccountTransaction a)] -> IO ()
 printJournal date = printBox . renderJournal date
@@ -125,19 +126,28 @@ journalRow Account{..} AccountTransaction{..} =
         (unAccountName name:transactionAmountRow amount) ++
             [maybe Text.empty Text.pack description]
 
-renderLedger :: (Integral a) => Ledger a -> Box
-renderLedger ledger@(Ledger account transactions) =
-    title // separator // body // separator // balance
+renderCompleteLedger :: (Integral a) => Ledger a -> String
+renderCompleteLedger = renderLedger transactionRow headers
+  where
+    headers = ["Date", "Debit", "Credit", "Description", "Id"]
+
+renderLedger :: 
+  (Integral a) 
+    => ([AccountTransaction a -> Text.Text])
+    -> [Text.Text]
+    -> Ledger a
+    -> String
+renderLedger row headers ledger@(Ledger account transactions) =
+    render $ title // separator // body // separator // balance
   where
     body =
         hsep 2 top
         . map formatColumns
         . transpose
         . (++) [headers]
-        . map transactionRow $ transactions
+        . map (sequenceA row) $ transactions
     title = alignHoriz center2 width (boxAccount account)
     separator = text $ replicate width '-'
-    headers = ["Date", "Debit", "Credit", "Description"]
     balance = text "Balance:" <+> (
         hsep 1 left
         . map (text . Text.unpack)
@@ -145,11 +155,20 @@ renderLedger ledger@(Ledger account transactions) =
         . accountBalance $ ledger)
     width = cols body
 
-transactionRow :: (Integral a) => AccountTransaction a -> [Text.Text]
-transactionRow AccountTransaction{..} =
-    [Text.pack $ show date]
-        ++ transactionAmountRow amount
-        ++ [maybe Text.empty Text.pack description]
+transactionRow :: (Integral a) => ([AccountTransaction a -> Text.Text])
+transactionRow =
+      [ Text.pack . show . date
+      , debitColumn
+      , creditColumn
+      , maybe Text.empty Text.pack . description
+      , toText . transactionId
+      ]
+  where
+    debitColumn AccountTransaction{..} = toAmount Debit amount
+    creditColumn AccountTransaction{..} = toAmount Credit amount
+    toAmount expected (TransactionAmount t a)
+      | expected == t = numberField a
+      | otherwise = Text.empty
 
 transactionAmountRow :: (Integral a) => TransactionAmount a -> [Text.Text]
 transactionAmountRow (TransactionAmount Debit a) =
