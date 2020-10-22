@@ -12,10 +12,11 @@ module Core.Database
     , updateDatabase
     ) where
 
+import Data.Time (Day)
 import Data.Maybe (fromMaybe, isJust)
 import Data.UUID (UUID, nil, toString, fromText)
 
-import Control.Monad (when)
+import Control.Monad (when, forM_)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe ( MaybeT(..) )
 import Control.Monad.Except
@@ -35,11 +36,13 @@ import Database.SQLite.Simple
       query_,
       withTransaction,
       field,
+      lastInsertRowId,
       Only(Only, fromOnly),
       SQLData(SQLText, SQLInteger),
       ResultError(ConversionFailed),
       FromRow(..),
-      Connection )
+      Connection,
+    )
 import Database.SQLite.Simple.Ok ( Ok(Ok) )
 import Database.SQLite.Simple.ToField ( ToField(..) )
 import Database.SQLite.Simple.FromField
@@ -293,4 +296,38 @@ schema =
         flip execute_ 
             ("ALTER TABLE Transactions ADD transaction_id\ 
             \ TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'")
-      ]]
+      ]
+    , [ -- version 5
+        flip execute_ "PRAGMA foreign_keys=OFF",
+        flip execute_
+            "CREATE TABLE Journals (\
+              \id INTEGER PRIMARY KEY, date DATE NOT NULL, note TEXT)",
+        flip execute_
+            "CREATE TABLE new_transactions (\
+              \id INTEGER PRIMARY KEY,\
+              \journal_id INTEGER NOT NULL,\
+              \account_id INTEGER NOT NULL,\
+              \type_id INTEGER NOT NULL,\
+              \amount INTEGER NOT NULL,\
+              \FOREIGN KEY (account_id) REFERENCES accounts (id) \
+              \FOREIGN KEY (journal_id) REFERENCES journals (id) \
+              \FOREIGN KEY (type_id) REFERENCES transactiontypes (id))",
+        copyTransactionsV4ToV5,
+        flip execute_ "DROP TABLE transactions",
+        flip execute_ "ALTER TABLE new_transactions RENAME TO transactions",
+        flip execute_ "PRAGMA foreign_keys=ON"
+      ]
+    ]
+
+copyTransactionsV4ToV5 :: Connection -> IO ()
+copyTransactionsV4ToV5 conn = do
+    transactions <- query_ conn 
+        "SELECT date, description, transaction_id from transactions \
+           \GROUP BY transaction_id \
+           \ORDER BY id" :: IO [(Day, String, String)]
+    forM_ transactions $ \(date, note, uuid) -> do
+        execute conn "INSERT INTO journals (date, note) VALUES (?, ?)" (date, note)
+        insertId <- lastInsertRowId conn
+        execute conn "INSERT INTO new_transactions SELECT id, ?, account_id, type_id, amount \
+            \FROM transactions WHERE transaction_id=?" (insertId, uuid)
+
