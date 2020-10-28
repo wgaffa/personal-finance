@@ -132,7 +132,6 @@ showTransactions ShowOptions{..} =
       , debitColumn
       , creditColumn
       , maybe Text.empty Text.pack . description
-      , toText . transactionId
       ]
     debitColumn AccountTransaction{..} = toAmount Debit amount
     creditColumn AccountTransaction{..} = toAmount Credit amount
@@ -218,7 +217,6 @@ transactionInteractive date accu =
                 <$> promptExcept "Note: " (pure . emptyString)
                 <*> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
                     <$> createTransactionAmountInteractive account)
-                <*> (pure $ newId env)
         >>= \ x -> pure $ (account, x):accu
     readEntries entries =
         liftIO

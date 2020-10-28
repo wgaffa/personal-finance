@@ -82,17 +82,6 @@ instance FromField AccountElement where
             (SQLText s) -> Ok . read . Text.unpack $ s
             _ -> returnError ConversionFailed f "need a string"
 
-instance FromField UUID where
-    fromField f =
-        case fieldData f of
-            (SQLText s) -> 
-              case fromText s of
-                Just x -> Ok x
-                Nothing -> returnError ConversionFailed f "need an uuid"
-
-instance ToField UUID where
-    toField = toField . toString
-
 instance FromField TransactionType where
     fromField f =
         case fieldData f of
@@ -102,8 +91,14 @@ instance FromField TransactionType where
 instance FromRow Account where
     fromRow = Account <$> field <*> field <*> field
 
-instance (FromField a) => FromRow (AccountTransaction a) where
-    fromRow = AccountTransaction <$> field <*> field <*> fromRow <*> field
+instance FromRow Details where
+    fromRow = Details <$> field <*> field
+
+instance FromField a => FromRow (LedgerEntry a) where
+    fromRow = LedgerEntry <$> fromRow <*> fromRow
+
+instance (FromField a) => FromRow (JournalEntry a) where
+    fromRow = JournalEntry <$> fromRow <*> fromRow
 
 instance (FromField a) => FromRow (TransactionAmount a) where
     fromRow = TransactionAmount <$> field <*> field
@@ -124,35 +119,37 @@ saveAccount acc@Account{..} conn =
 
 saveTransaction ::
     (MonadError AccountError m, MonadIO m)
-    => Account
-    -> AccountTransaction Int
+    => AccountNumber
+    -> Int -- ^Journal Id
+    -> TransactionAmount Int
     -> Connection
     -> m ()
-saveTransaction Account{..} AccountTransaction{..} conn = do
+saveTransaction number journalId amount conn = do
     typeId <- liftIO $ runMaybeT $
         transactionTypeId (fst transactionTuple) conn
     liftIO $ execute conn q
-        (number,
-        maybe Text.empty Text.pack description,
-        typeId, date, snd transactionTuple, transactionId)
+        (number, journalId,
+        typeId, snd transactionTuple)
   where
     transactionTuple = (\(TransactionAmount t a) -> (t, a)) amount
     q = "insert into transactions\
-        \ (account_id, description, type_id, date, amount, transaction_id)\
-        \ values (?, ?, ?, ?, ?, ?)"
+        \ (account_id, journal_id, type_id, amount)\
+        \ values (?, ?, ?, ?)"
 
 allAccountTransactions ::
     (FromField a) =>
     Account
     -> Connection
-    -> IO [AccountTransaction a]
-allAccountTransactions Account{..} conn =
+    -> IO (Ledger a)
+allAccountTransactions acc@Account{..} conn = 
     query conn q (Only number)
+      >>= return . Ledger acc
   where
-    q = "select t.date, t.description, ty.name, t.amount, t.transaction_id \
+    q = "select j.date, j.note, ty.name, t.amount \
         \from transactions t \
         \inner join transactiontypes ty on t.type_id=ty.id \
-        \where account_id=? order by t.date"
+        \inner join journals j on t.journal_id=j.id \
+        \where account_id=? order by j.date"
 
 checkAccount ::
     (MonadError AccountError m, MonadIO m)
@@ -196,7 +193,7 @@ findLedger ::
     => AccountNumber -> Connection -> m (Ledger a)
 findLedger number conn =
     liftIO $ findAccount number conn
-    >>= (\ account -> Ledger account <$> allAccountTransactions account conn)
+      >>= flip allAccountTransactions conn
 
 -- | Find the id of an account element in the database
 elementId ::
