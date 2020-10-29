@@ -5,6 +5,7 @@
 module Core.Database
     ( saveAccount
     , saveTransaction
+    , saveJournal
     , findAccount
     , findLedger
     , allAccounts
@@ -135,6 +136,18 @@ saveTransaction number journalId amount conn = do
     q = "insert into transactions\
         \ (account_id, journal_id, type_id, amount)\
         \ values (?, ?, ?, ?)"
+
+saveJournal :: 
+    (MonadError AccountError m, MonadIO m)
+    => Journal Int
+    -> Connection
+    -> m Int
+saveJournal (Journal details _) conn = 
+    (liftIO $ execute conn q (date details, description details))
+    >> (liftIO $ lastInsertRowId conn) >>= pure . fromIntegral
+  where
+    q = "insert into journals \
+        \(date, note) values (?, ?)"
 
 allAccountTransactions ::
     (FromField a) =>

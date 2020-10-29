@@ -39,7 +39,13 @@ import Control.Monad.Reader
       MonadReader(ask) )
 import Control.Monad.IO.Class ( MonadIO(liftIO) )
 
-import Database.SQLite.Simple (withTransaction,  close, open, Connection )
+import Database.SQLite.Simple
+    ( withTransaction,
+      close,
+      open,
+      Connection,
+      lastInsertRowId
+    )
 import Database.SQLite.Simple.FromField ( FromField )
 
 import OptParser
@@ -111,6 +117,7 @@ showAccounts = do
   where
     accountBalance x = value . toBalance x id . balance . map amount
     value (TransactionAmount _ a) = a
+    amount (LedgerEntry _ x)= x
 
 showTransactions :: ShowOptions -> App ()
 showTransactions ShowOptions{..} =
@@ -121,23 +128,7 @@ showTransactions ShowOptions{..} =
             >>= (\ accountNumber ->
                 withDatabase (liftIO . findLedger accountNumber)
             )))
-    >>= liftIO . putStrLn . renderLedger columns headers
-  where
-    headers = takeRelevant allHeaders
-    allHeaders = ["Name", "Debit", "Credit", "Description", "Id"]
-    columns = takeRelevant allColumns
-    takeRelevant xs = if showId then xs else init xs
-    allColumns = 
-      [ Text.pack . show . date
-      , debitColumn
-      , creditColumn
-      , maybe Text.empty Text.pack . description
-      ]
-    debitColumn AccountTransaction{..} = toAmount Debit amount
-    creditColumn AccountTransaction{..} = toAmount Credit amount
-    toAmount expected (TransactionAmount t a)
-      | expected == t = numberField a
-      | otherwise = Text.empty
+    >>= liftIO . putStrLn . renderLedger
 
 createAccount :: App ()
 createAccount = do
@@ -152,17 +143,30 @@ addTransaction :: App ()
 addTransaction = do
     now <- liftIO today
     date <- promptDate "Date: " now
-    ts <- transactionInteractive date []
+    desc <- promptExcept "Note: " $ pure . emptyString
+    journal <- transactionInteractive $ Journal (Details date desc) []
+    journalId <- withDatabase $ liftIO . \ conn -> do
+        withTransaction conn $ do
+            res <- runExceptT $ saveJournal (fmap unAbsoluteValue journal) conn
+            case res of
+              (Right i) -> pure i
+              (Left _) -> error "Unexpected error when writing journal"
     withDatabase $ liftIO . \ conn -> do
         withTransaction conn $ do
-            forM_ ts $ \ acc -> do
+            forM_ (entries journal) $ \ acc -> do
                 res <- runExceptT $ saveTransaction
-                    (fst acc)
-                    (unAbsoluteValue <$> snd acc)
+                    (number . account $ acc)
+                    (journalId)
+                    (unAbsoluteValue <$> amount acc)
                      conn
                 when (isLeft res) $
                     error "Unexpected error when saving transaction"
     return ()
+  where
+    entries (Journal _ xs) = xs
+    account (JournalEntry x _) = x
+    amount (JournalEntry _ x) = x
+    txs (TransactionAmount _ x) = x
 
 createAccountInteractive ::
     (MonadError AccountError m, MonadIO m)
@@ -200,10 +204,9 @@ createAccountTransactionAmount x m
     | otherwise = increase x . absoluteValue $ m
 
 transactionInteractive ::
-    Day
-    -> [(Account, AccountTransaction (AbsoluteValue Int))]
-    -> App [(Account, AccountTransaction (AbsoluteValue Int))]
-transactionInteractive date accu =
+    Journal (AbsoluteValue Int)
+    -> App (Journal (AbsoluteValue Int))
+transactionInteractive journal@(Journal details _) =
     findAccountInDatabase >>= readAccount >>= readEntries
   where
     findAccountInDatabase =
@@ -213,23 +216,24 @@ transactionInteractive date accu =
           return acc
     readAccount account =
         ask >>= \ env ->
-            AccountTransaction date
-                <$> promptExcept "Note: " (pure . emptyString)
-                <*> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
+            JournalEntry account
+                <$> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
                     <$> createTransactionAmountInteractive account)
-        >>= \ x -> pure $ (account, x):accu
-    readEntries entries =
-        liftIO
-            (printJournal date
-                $ map (second (fmap unAbsoluteValue)) entries)
-        >> (pure . balance . map (fmap unAbsoluteValue . amount . snd) $ entries)
+        >>= pure . Journal details . (: entries journal)
+    readEntries x =
+        (liftIO . putStrLn . renderJournal . fmap unAbsoluteValue $ x)
+        >> (pure . balance . map (fmap unAbsoluteValue . amount) $ entries x)
         >>= (\ currentBalance ->
                 if currentBalance == 0
-                    then pure entries
-                    else transactionInteractive date entries)
-    emptyString xs
-        | all isSpace xs = Nothing
-        | otherwise = Just xs
+                    then pure x
+                    else transactionInteractive x)
+    entries (Journal _ xs) = xs
+    amount (JournalEntry _ x) = x
+
+emptyString :: String -> Maybe String
+emptyString xs
+    | all isSpace xs = Nothing
+    | otherwise = Just xs
 
 withDatabase :: (Connection -> App a) -> App a
 withDatabase f = ask >>= \ cfg -> bracket
