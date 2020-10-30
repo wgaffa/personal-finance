@@ -27,7 +27,6 @@ module Expense.Account
 
 import Data.Char ( isSpace )
 import qualified Data.Text as Text
-import Data.UUID (UUID)
 import Data.Time (Day)
 
 import Expense.Transaction

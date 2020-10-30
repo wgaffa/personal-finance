@@ -16,8 +16,6 @@ import qualified Data.Text as Text
 import Text.Read (readMaybe)
 import Data.Time (Day)
 import Data.Either (isLeft)
-import Data.UUID (UUID, nil, toText)
-import Data.UUID.V4 (nextRandom)
 
 import Control.Monad (when, forM_, forM)
 import Control.Monad.Catch
@@ -63,7 +61,6 @@ import Utility.Absolute
 data AppEnvironment = AppEnvironment
     { connectionString :: String
     , command :: Command
-    , newId :: UUID
     }
 
 newtype App a = App {
@@ -94,11 +91,9 @@ dispatcher UpdateDatabase = updateDb
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
     Options {..} <- execArgParser
-    tId <- nextRandom
     return AppEnvironment
         { connectionString = fromMaybe "db.sqlite3" dbConnection
         , command = optCommand
-        , newId = tId
         }
 
 updateDb :: App ()
