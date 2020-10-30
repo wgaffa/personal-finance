@@ -304,7 +304,7 @@ schema =
     ]
     , [ -- version 4
         flip execute_
-            ("ALTER TABLE Transactions ADD transaction_id\ 
+            ("ALTER TABLE Transactions ADD transaction_id\
             \ TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'")
       ]
     , [ -- version 5
