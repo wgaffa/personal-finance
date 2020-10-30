@@ -100,8 +100,8 @@ renderJournal (Journal details txs) =
         . map journalEntryRow
         $ txs
     title = alignHoriz center2 width . text $ titleText
-    titleText = 
-        "Transaction for " ++ show (date details) ++ " - " 
+    titleText =
+        "Transaction for " ++ show (date details) ++ " - "
           ++ fromMaybe mempty (description details)
     width = cols body
     separator = text $ replicate width '-'
@@ -125,7 +125,7 @@ journalEntryRow (JournalEntry account amount)=
   where
     getName = unAccountName . name
 
-renderLedger :: 
+renderLedger ::
   (Integral a) => Ledger a -> String
 renderLedger ledger@(Ledger account entries) =
     render $ title // separator // body // separator // balance

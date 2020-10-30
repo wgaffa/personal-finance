@@ -48,16 +48,16 @@ data JournalEntry a = JournalEntry Account (TransactionAmount a)
 
 instance Functor Journal where
     fmap f (Journal d xs) = Journal d . map (fmap f) $ xs
-    
+
 instance Functor JournalEntry where
     fmap f (JournalEntry a x) = JournalEntry a . fmap f $ x
-    
+
 instance Functor Ledger where
     fmap f (Ledger d xs) = Ledger d . map (fmap f) $ xs
 
 instance Functor LedgerEntry where
     fmap f (LedgerEntry d x) = LedgerEntry d . fmap f $ x
-  
+
 -- | A ledger holds an accounts transactions
 data Ledger a = Ledger Account [LedgerEntry a]
 data LedgerEntry a = LedgerEntry Details (TransactionAmount a)

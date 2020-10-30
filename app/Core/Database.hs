@@ -137,12 +137,12 @@ saveTransaction number journalId amount conn = do
         \ (account_id, journal_id, type_id, amount)\
         \ values (?, ?, ?, ?)"
 
-saveJournal :: 
+saveJournal ::
     (MonadError AccountError m, MonadIO m)
     => Journal Int
     -> Connection
     -> m Int
-saveJournal (Journal details _) conn = 
+saveJournal (Journal details _) conn =
     (liftIO $ execute conn q (date details, description details))
     >> (liftIO $ lastInsertRowId conn) >>= pure . fromIntegral
   where
@@ -154,7 +154,7 @@ allAccountTransactions ::
     Account
     -> Connection
     -> IO (Ledger a)
-allAccountTransactions acc@Account{..} conn = 
+allAccountTransactions acc@Account{..} conn =
     query conn q (Only number)
       >>= return . Ledger acc
   where
@@ -303,7 +303,7 @@ schema =
         flip execute_ "ALTER TABLE Transactions ADD description TEXT"
     ]
     , [ -- version 4
-        flip execute_ 
+        flip execute_
             ("ALTER TABLE Transactions ADD transaction_id\ 
             \ TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'")
       ]
@@ -331,7 +331,7 @@ schema =
 
 copyTransactionsV4ToV5 :: Connection -> IO ()
 copyTransactionsV4ToV5 conn = do
-    transactions <- query_ conn 
+    transactions <- query_ conn
         "SELECT date, description, transaction_id from transactions \
            \GROUP BY transaction_id \
            \ORDER BY id" :: IO [(Day, String, String)]
