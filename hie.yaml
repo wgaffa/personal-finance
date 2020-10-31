@@ -1,0 +1,34 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "expense-tracker:lib"
+
+    - path: "./app/Main.hs"
+      component: "expense-tracker:exe:expense-tracker-exe"
+
+    - path: "./app/Core/Database.hs"
+      component: "expense-tracker:exe:expense-tracker-exe"
+
+    - path: "./app/Core/Error.hs"
+      component: "expense-tracker:exe:expense-tracker-exe"
+
+    - path: "./app/Core/PrettyPrint.hs"
+      component: "expense-tracker:exe:expense-tracker-exe"
+
+    - path: "./app/Core/Prompt.hs"
+      component: "expense-tracker:exe:expense-tracker-exe"
+
+    - path: "./app/Core/Utils.hs"
+      component: "expense-tracker:exe:expense-tracker-exe"
+
+    - path: "./app/OptParser.hs"
+      component: "expense-tracker:exe:expense-tracker-exe"
+
+    - path: "./app/Repl.hs"
+      component: "expense-tracker:exe:expense-tracker-exe"
+
+    - path: "./app/Paths_expense_tracker.hs"
+      component: "expense-tracker:exe:expense-tracker-exe"
+
+    - path: "./test"
+      component: "expense-tracker:test:expense-tracker-test"
