@@ -151,7 +151,7 @@ addTransaction = do
             forM_ (entries journal) $ \ acc -> do
                 res <- runExceptT $ saveTransaction
                     (number . account $ acc)
-                    (journalId)
+                    journalId
                     (unAbsoluteValue <$> amount acc)
                      conn
                 when (isLeft res) $
@@ -211,10 +211,9 @@ transactionInteractive journal@(Journal details _) =
           return acc
     readAccount account =
         ask >>= \ env ->
-            JournalEntry account
-                <$> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
-                    <$> createTransactionAmountInteractive account)
-        >>= pure . Journal details . (: entries journal)
+            Journal details . (: entries journal) . JournalEntry account
+              <$> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
+                <$> createTransactionAmountInteractive account)
     readEntries x =
         (liftIO . putStrLn . renderJournal . fmap unAbsoluteValue $ x)
         >> (pure . balance . map (fmap unAbsoluteValue . amount) $ entries x)

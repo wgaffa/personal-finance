@@ -120,8 +120,8 @@ renderJournal (Journal details txs) =
 -- | Make a row consisting of the columns AccountName, Debit, Credit
 journalEntryRow ::
     (Integral a) => JournalEntry a -> [Text.Text]
-journalEntryRow (JournalEntry account amount)=
-        (getName account:transactionAmountRow amount)
+journalEntryRow (JournalEntry account amount) =
+    getName account:transactionAmountRow amount
   where
     getName = unAccountName . name
 

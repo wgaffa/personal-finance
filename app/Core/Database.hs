@@ -143,8 +143,10 @@ saveJournal ::
     -> Connection
     -> m Int
 saveJournal (Journal details _) conn =
-    (liftIO $ execute conn q (date details, description details))
-    >> (liftIO $ lastInsertRowId conn) >>= pure . fromIntegral
+    fromIntegral
+      <$>
+        (liftIO (execute conn q (date details, description details))
+          >> liftIO (lastInsertRowId conn))
   where
     q = "insert into journals \
         \(date, note) values (?, ?)"
@@ -155,8 +157,8 @@ allAccountTransactions ::
     -> Connection
     -> IO (Ledger a)
 allAccountTransactions acc@Account{..} conn =
-    query conn q (Only number)
-      >>= return . Ledger acc
+    Ledger acc
+      <$> query conn q (Only number)
   where
     q = "select j.date, j.note, ty.name, t.amount \
         \from transactions t \
@@ -304,8 +306,8 @@ schema =
     ]
     , [ -- version 4
         flip execute_
-            ("ALTER TABLE Transactions ADD transaction_id\
-            \ TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'")
+            "ALTER TABLE Transactions ADD transaction_id\
+            \ TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'"
       ]
     , [ -- version 5
         flip execute_ "PRAGMA foreign_keys=OFF",
