@@ -15,19 +15,13 @@ module Core.Database
 
 import Data.Time (Day)
 import Data.Maybe (fromMaybe, isJust)
-import Data.UUID (UUID, nil, toString, fromText)
 
 import Control.Monad (when, forM_)
-import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe ( MaybeT(..) )
 import Control.Monad.Except
-    ( when,
-      unless,
-      MonadTrans(lift),
+    ( unless,
       MonadIO(liftIO),
-      ExceptT(..),
       MonadError(throwError) )
-import Control.Monad.IO.Class (liftIO)
 
 import Database.SQLite.Simple
     ( execute,
@@ -47,8 +41,7 @@ import Database.SQLite.Simple
 import Database.SQLite.Simple.Ok ( Ok(Ok) )
 import Database.SQLite.Simple.ToField ( ToField(..) )
 import Database.SQLite.Simple.FromField
-    ( ResultError(ConversionFailed),
-      fieldData,
+    ( fieldData,
       returnError,
       FromField(..) )
 

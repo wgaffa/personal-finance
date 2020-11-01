@@ -9,42 +9,33 @@ module Main where
 
 import System.IO ()
 
-import Data.Bifunctor (second)
 import Data.Maybe (fromMaybe)
 import Data.Char ( isSpace )
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
-import Data.Time (Day)
 import Data.Either (isLeft)
 
 import Control.Monad (when, forM_, forM)
 import Control.Monad.Catch
     ( MonadThrow, MonadCatch, MonadMask
-    , bracket, finally)
+    , bracket)
 import Control.Monad.Except
-    ( MonadTrans(lift),
-      MonadIO(liftIO),
+    ( MonadIO(liftIO),
       MonadError(),
       ExceptT,
       liftEither,
       runExceptT )
 import Control.Monad.Trans.Maybe ( MaybeT(runMaybeT) )
-import Control.Monad.Trans.State (execStateT, execState, put, modify, StateT, get)
 import Control.Monad.Reader
-    ( MonadTrans(lift),
-      MonadIO(liftIO),
-      ReaderT(runReaderT),
+    ( ReaderT(runReaderT),
       MonadReader(ask) )
-import Control.Monad.IO.Class ( MonadIO(liftIO) )
 
 import Database.SQLite.Simple
     ( withTransaction,
       close,
       open,
-      Connection,
-      lastInsertRowId
+      Connection
     )
-import Database.SQLite.Simple.FromField ( FromField )
 
 import OptParser
 import Core.Database
@@ -161,7 +152,6 @@ addTransaction = do
     entries (Journal _ xs) = xs
     account (JournalEntry x _) = x
     amount (JournalEntry _ x) = x
-    txs (TransactionAmount _ x) = x
 
 createAccountInteractive ::
     (MonadError AccountError m, MonadIO m)
@@ -210,7 +200,7 @@ transactionInteractive journal@(Journal details _) =
           liftIO $ printAccount acc
           return acc
     readAccount account =
-        ask >>= \ env ->
+        ask >>= \ _ ->
             JournalEntry account
                 <$> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
                     <$> createTransactionAmountInteractive account)
