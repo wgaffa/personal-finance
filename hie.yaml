@@ -4,31 +4,31 @@ cradle:
       component: "expense-tracker:lib"
 
     - path: "./app/Main.hs"
-      component: "expense-tracker:exe:expense-tracker-exe"
+      component: "expense-tracker:exe:dee-book"
 
     - path: "./app/Core/Database.hs"
-      component: "expense-tracker:exe:expense-tracker-exe"
+      component: "expense-tracker:exe:dee-book"
 
     - path: "./app/Core/Error.hs"
-      component: "expense-tracker:exe:expense-tracker-exe"
+      component: "expense-tracker:exe:dee-book"
 
     - path: "./app/Core/PrettyPrint.hs"
-      component: "expense-tracker:exe:expense-tracker-exe"
+      component: "expense-tracker:exe:dee-book"
 
     - path: "./app/Core/Prompt.hs"
-      component: "expense-tracker:exe:expense-tracker-exe"
+      component: "expense-tracker:exe:dee-book"
 
     - path: "./app/Core/Utils.hs"
-      component: "expense-tracker:exe:expense-tracker-exe"
+      component: "expense-tracker:exe:dee-book"
 
     - path: "./app/OptParser.hs"
-      component: "expense-tracker:exe:expense-tracker-exe"
+      component: "expense-tracker:exe:dee-book"
 
     - path: "./app/Repl.hs"
-      component: "expense-tracker:exe:expense-tracker-exe"
+      component: "expense-tracker:exe:dee-book"
 
     - path: "./app/Paths_expense_tracker.hs"
-      component: "expense-tracker:exe:expense-tracker-exe"
+      component: "expense-tracker:exe:dee-book"
 
     - path: "./test"
       component: "expense-tracker:test:expense-tracker-test"
