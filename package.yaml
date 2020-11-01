@@ -1,5 +1,5 @@
 name:                expense-tracker
-version:             0.1.0.0
+version:             0.2.0.0
 github:              "wgaffa/expense-tracker"
 license:             BSD3
 author:              "Patrik Maunus"
@@ -30,7 +30,7 @@ library:
   source-dirs: src
 
 executables:
-  expense-tracker-exe:
+  dee-book:
     main:                Main.hs
     source-dirs:         app
     ghc-options:

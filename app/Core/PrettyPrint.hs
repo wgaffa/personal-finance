@@ -15,7 +15,6 @@ module Core.PrettyPrint
 import Prelude hiding ((<>))
 
 import Data.Maybe (fromMaybe)
-import Data.Time (Day)
 import qualified Data.Text as Text
 
 import Data.Monoid (Sum(Sum), getSum)
@@ -35,12 +34,10 @@ import Text.PrettyPrint.Boxes
       text,
       top,
       vcat,
-      vsep,
       Box(cols) )
 
 import Expense.Transaction
 import Expense.Account
-import Utility.Absolute
 
 formatColumns :: [Text.Text] -> Box
 formatColumns items =
