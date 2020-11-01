@@ -22,4 +22,4 @@ instance (Num a) => FromField (AbsoluteValue a) where
             (SQLInteger i) -> Ok . absoluteValue . fromIntegral $ i
 
 today :: IO Day
-today = getCurrentTime >>= pure . utctDay
+today = utctDay <$> getCurrentTime

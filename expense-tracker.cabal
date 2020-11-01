@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 23e436581d86ab45929aef95b90bb89ef82e0b66ddd1873f66d11766c48610b8
+-- hash: 24996cd3ade24da357440aa8dfefd27a02c0dda5eb91d4ccf82f6673570025f0
 
 name:           expense-tracker
-version:        0.1.0.0
+version:        0.2.0.0
 description:    Please see the README on GitHub at <https://github.com/githubuser/expense-tracker#readme>
 homepage:       https://github.com/wgaffa/expense-tracker#readme
 bug-reports:    https://github.com/wgaffa/expense-tracker/issues
@@ -39,9 +39,10 @@ library
     , containers
     , text
     , time
+    , uuid
   default-language: Haskell2010
 
-executable expense-tracker-exe
+executable dee-book
   main-is: Main.hs
   other-modules:
       Core.Database
@@ -50,7 +51,6 @@ executable expense-tracker-exe
       Core.Prompt
       Core.Utils
       OptParser
-      Repl
       Paths_expense_tracker
   hs-source-dirs:
       app
@@ -69,6 +69,7 @@ executable expense-tracker-exe
     , text
     , time
     , transformers
+    , uuid
   default-language: Haskell2010
 
 test-suite expense-tracker-test
@@ -85,4 +86,5 @@ test-suite expense-tracker-test
     , expense-tracker
     , text
     , time
+    , uuid
   default-language: Haskell2010

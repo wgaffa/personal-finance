@@ -3,14 +3,18 @@
 
 module Core.PrettyPrint
     ( printAccount
-    , printJournal
+    , renderJournal
     , printListAccounts
-    , printLedger
+    , renderLedger
+    , renderTriageBalance
     , formatColumns
+    , transactionAmountRow
+    , numberField
     ) where
 
 import Prelude hiding ((<>))
 
+import Data.Maybe (fromMaybe)
 import Data.Time (Day)
 import qualified Data.Text as Text
 
@@ -27,6 +31,7 @@ import Text.PrettyPrint.Boxes
       hsep,
       left,
       printBox,
+      render,
       text,
       top,
       vcat,
@@ -65,69 +70,94 @@ printListAccounts =
     . transpose
     . map accountRow
 
-printLedger :: (Integral a) => Ledger a -> IO ()
-printLedger = printBox . renderLedger
+renderTriageBalance ::
+    (Integral a, Show a)
+    => [(Account, a)] -> String
+renderTriageBalance xs =
+    render table
+  where
+    table = body
+    headers = ["Id", "Name", "Element", "Balance"]
+    body = hsep 2 top
+      . map formatColumns
+      . transpose
+      . (++) [headers]
+      . map (sequenceA row) $ xs
+    row =
+        [ Text.pack . show . number . fst,
+          unAccountName . name . fst,
+          Text.pack . show . element . fst,
+          numberField . snd]
 
-printJournal :: (Integral a, Show a) =>
-    Day -> [(Account, AccountTransaction a)] -> IO ()
-printJournal date = printBox . renderJournal date
-
-renderJournal :: (Integral a, Show a) =>
-    Day -> [(Account, AccountTransaction a)] -> Box
-renderJournal date xs =
-    title // separator // body // separator // totals
+renderJournal:: (Integral a, Show a) => Journal a -> String
+renderJournal (Journal details txs) =
+    render $ title // separator // body // separator // totals
   where
     body = hsep 2 top
         . map formatColumns
         . transpose
         . (++) [headers]
-        . map (\ (x, y) -> journalRow x y)
-        $ xs
-    title = alignHoriz center2 width . text $ "Transaction for " ++ show date
+        . map journalEntryRow
+        $ txs
+    title = alignHoriz center2 width . text $ titleText
+    titleText =
+        "Transaction for " ++ show (date details) ++ " - "
+          ++ fromMaybe mempty (description details)
     width = cols body
     separator = text $ replicate width '-'
-    headers = ["Account", "Debit", "Credit", "Description"]
+    headers = ["Account", "Debit", "Credit"]
     totals = hsep 2 left $ text "Total" : map (text . Text.unpack) balances
     balances =
         let toAmount (TransactionAmount _ a) = a
             (debits, credits) = mapPair (map toAmount) $ splitTransactions transactions
             in [numberField . theSum $ debits
                 , numberField . theSum $ credits]
-    theSum = getSum . mconcat . map (Sum)
+    theSum = getSum . mconcat . map Sum
     mapPair f = uncurry ((,) `on` f)
-    transactions = map (amount . snd) xs
+    transactions = map amount txs
+    amount (JournalEntry _ x) = x
 
-journalRow ::
-    (Integral a) =>
-    Account -> AccountTransaction a -> [Text.Text]
-journalRow Account{..} AccountTransaction{..} =
-        unAccountName name:transactionAmountRow amount
+-- | Make a row consisting of the columns AccountName, Debit, Credit
+journalEntryRow ::
+    (Integral a) => JournalEntry a -> [Text.Text]
+journalEntryRow (JournalEntry account amount)=
+        (getName account:transactionAmountRow amount)
+  where
+    getName = unAccountName . name
 
-renderLedger :: (Integral a) => Ledger a -> Box
-renderLedger ledger@(Ledger account transactions) =
-    title // separator // body // separator // balance
+renderLedger ::
+  (Integral a) => Ledger a -> String
+renderLedger ledger@(Ledger account entries) =
+    render $ title // separator // body // separator // balance
   where
     body =
         hsep 2 top
         . map formatColumns
         . transpose
         . (++) [headers]
-        . map transactionRow $ transactions
+        . map ledgerRow $ entries
     title = alignHoriz center2 width (boxAccount account)
     separator = text $ replicate width '-'
-    headers = ["Date", "Debit", "Credit", "Description"]
     balance = text "Balance:" <+> (
         hsep 1 left
         . map (text . Text.unpack)
         . balanceRow
         . accountBalance $ ledger)
     width = cols body
+    headers = ["Date", "Debit", "Credit", "Description"]
 
-transactionRow :: (Integral a) => AccountTransaction a -> [Text.Text]
-transactionRow AccountTransaction{..} =
-    [Text.pack $ show date]
-        ++ transactionAmountRow amount
-        ++ [maybe Text.empty Text.pack description]
+ledgerRow :: (Integral a) => LedgerEntry a -> [Text.Text]
+ledgerRow (LedgerEntry details amount)=
+      [ Text.pack . show . date $ details
+      , amountField Debit
+      , amountField Credit
+      , maybe Text.empty Text.pack . description $ details
+      ]
+  where
+    amountField = flip toAmount amount
+    toAmount expected (TransactionAmount t a)
+      | expected == t = numberField a
+      | otherwise = Text.empty
 
 transactionAmountRow :: (Integral a) => TransactionAmount a -> [Text.Text]
 transactionAmountRow (TransactionAmount Debit a) =
@@ -138,7 +168,7 @@ transactionAmountRow (TransactionAmount Credit a) =
 balanceRow :: (Integral a) => TransactionAmount a -> [Text.Text]
 balanceRow (TransactionAmount t a) =
     [ Text.pack $ show t
-    , Text.pack $ printf "%.2f" (fromIntegral a / 100 :: Double)]
+    , numberField a]
 
 accountRow :: Account -> [Text.Text]
 accountRow Account{..} =
