@@ -15,7 +15,7 @@ import qualified Data.Text as Text
 import Text.Read (readMaybe)
 import Data.Either (isLeft)
 
-import Control.Monad (when, forM_, forM)
+import Control.Monad (when, unless, forM_, forM)
 import Control.Monad.Catch
     ( MonadThrow, MonadCatch, MonadMask
     , bracket)
@@ -78,6 +78,7 @@ dispatcher CreateAccount = createAccount
 dispatcher AddTransaction = addTransaction
 dispatcher (ShowAccount n) = showTransactions n
 dispatcher UpdateDatabase = updateDb
+dispatcher CheckHealth = checkHealth
 
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
@@ -86,6 +87,16 @@ readEnvironment = do
         { connectionString = fromMaybe "db.sqlite3" dbConnection
         , command = optCommand
         }
+
+checkHealth :: App ()
+checkHealth =
+    liftIO (putStr "Checking balance: ")
+    >> (withDatabase (liftIO . allTransactions) :: App [TransactionAmount Int])
+    >>= liftIO . checkBalance
+  where
+    checkBalance xs
+      | zeroBalance xs = putStrLn "OK"
+      | otherwise = putStrLn "NOT OK"
 
 updateDb :: App ()
 updateDb = do
@@ -200,10 +211,9 @@ transactionInteractive journal@(Journal details _) =
           liftIO $ printAccount acc
           return acc
     readAccount account =
-        ask >>= \ _ ->
-            Journal details . (: entries journal) . JournalEntry account
-              <$> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
-                <$> createTransactionAmountInteractive account)
+        Journal details . (: entries journal) . JournalEntry account
+          <$> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
+            <$> createTransactionAmountInteractive account)
     readEntries x =
         (liftIO . putStrLn . renderJournal . fmap unAbsoluteValue $ x)
         >> (pure . balance . map (fmap unAbsoluteValue . amount) $ entries x)

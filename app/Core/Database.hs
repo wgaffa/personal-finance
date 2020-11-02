@@ -10,6 +10,7 @@ module Core.Database
     , findLedger
     , allAccounts
     , allAccountTransactions
+    , allTransactions
     , updateDatabase
     ) where
 
@@ -143,6 +144,12 @@ saveJournal (Journal details _) conn =
   where
     q = "insert into journals \
         \(date, note) values (?, ?)"
+
+allTransactions :: (FromField a) => Connection -> IO [TransactionAmount a]
+allTransactions conn = query_ conn q
+  where
+    q = "select ty.name, t.amount from transactions t \
+        \inner join transactiontypes ty on t.type_id=ty.id"
 
 allAccountTransactions ::
     (FromField a) =>

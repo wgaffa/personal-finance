@@ -50,6 +50,7 @@ data Command
     | AddTransaction
     | ShowAccount ShowOptions
     | UpdateDatabase
+    | CheckHealth
 
 connectionOpt :: Parser (Maybe String)
 connectionOpt = optional $ strOption (
@@ -60,7 +61,7 @@ commands :: Parser Command
 commands = hsubparser
     (  listCommand <> createCommand
         <> transactionCommand <> showCommand
-        <> updateCommand )
+        <> updateCommand <> checkHealthCommand)
   where
     listCommand =
         command
@@ -87,6 +88,12 @@ commands = hsubparser
             (info
                 (pure UpdateDatabase)
                 (progDesc "Update the database to latest version"))
+    checkHealthCommand =
+        command
+            "checkhealth"
+            (info
+                (pure CheckHealth)
+                (progDesc "Check the health of the application and database"))
 
 showOptions :: Parser ShowOptions
 showOptions =
