@@ -15,6 +15,7 @@ module Core.Database
     , schemaVersion
     , latestSchemaVersion
     , foreignKeysViolations
+    , enableForeignKeys
     ) where
 
 import Data.Time (Day)
@@ -280,6 +281,9 @@ latestSchemaVersion = length schema
 foreignKeysViolations :: Connection -> IO [(String, Int, String, Int)]
 foreignKeysViolations conn =
     query_ conn "PRAGMA foreign_key_check"
+
+enableForeignKeys :: Connection -> IO ()
+enableForeignKeys conn = execute_ conn "PRAGMA foreign_keys=ON"
 
 schema :: [[Connection -> IO ()]]
 schema =
