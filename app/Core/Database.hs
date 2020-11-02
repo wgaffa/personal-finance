@@ -12,6 +12,9 @@ module Core.Database
     , allAccountTransactions
     , allTransactions
     , updateDatabase
+    , schemaVersion
+    , latestSchemaVersion
+    , foreignKeysViolations
     ) where
 
 import Data.Time (Day)
@@ -270,6 +273,13 @@ tables conn = map fromOnly <$> query_ conn q
   where
     q = "select name from sqlite_master where type='table' \
         \and name not like 'sqlite%'"
+
+latestSchemaVersion :: Int
+latestSchemaVersion = length schema
+
+foreignKeysViolations :: Connection -> IO [(String, Int, String, Int)]
+foreignKeysViolations conn =
+    query_ conn "PRAGMA foreign_key_check"
 
 schema :: [[Connection -> IO ()]]
 schema =
