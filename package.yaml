@@ -47,6 +47,7 @@ executables:
     - exceptions
     - boxes
     - gitrev
+    - free
 
 tests:
   expense-tracker-test:

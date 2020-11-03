@@ -68,7 +68,7 @@ dispatcher CreateAccount = createAccount
 dispatcher AddTransaction = addTransaction
 dispatcher (ShowAccount n) = showTransactions n
 dispatcher UpdateDatabase = updateDb
-dispatcher CheckHealth = checkHealth
+dispatcher CheckHealth = runTasks checkHealth
 
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
