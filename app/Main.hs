@@ -40,26 +40,16 @@ import Database.SQLite.Simple
 import OptParser
 import Core.Database
 import Core.PrettyPrint
+import Command.CheckHealth
 
 import Expense.Transaction
 import Expense.Account
 
+import Core.App
 import Core.Utils
 import Core.Prompt
 import Core.Error
 import Utility.Absolute
-
-data AppEnvironment = AppEnvironment
-    { connectionString :: String
-    , command :: Command
-    }
-
-newtype App a = App {
-    runApp :: ReaderT AppEnvironment (ExceptT AccountError IO) a
-    }
-    deriving (Functor, Applicative, Monad, MonadIO)
-    deriving newtype (MonadReader AppEnvironment, MonadError AccountError)
-    deriving newtype (MonadThrow, MonadCatch, MonadMask)
 
 main :: IO ()
 main = readEnvironment
@@ -87,32 +77,6 @@ readEnvironment = do
         { connectionString = fromMaybe "db.sqlite3" dbConnection
         , command = optCommand
         }
-
-checkHealth :: App ()
-checkHealth =
-    liftIO (putStr "Checking balance: ")
-    >> (withDatabase (liftIO . allTransactions) :: App [TransactionAmount Int])
-    >>= liftIO . checkBalance
-    >> liftIO (putStr "Checking DB version: ")
-    >> withDatabase (liftIO . schemaVersion)
-    >>= liftIO . checkDatabaseVersion
-    >> liftIO (putStr "Checking foreign keys: ")
-    >> withDatabase (liftIO . foreignKeysViolations)
-    >>= liftIO . checkForeignKeys
-  where
-    checkBalance xs
-      | zeroBalance xs = putStrLn "OK"
-      | otherwise = putStrLn "NOT OK"
-    checkDatabaseVersion v
-      | v == latestSchemaVersion = putStrLn "OK"
-      | v < latestSchemaVersion =
-          putStrLn $ show v ++ " needs to updated to " ++ show latestSchemaVersion
-      | v > latestSchemaVersion =
-          putStrLn $ show v ++ " is newer than the latest " ++ show latestSchemaVersion ++
-            ", undefined behaviour"
-    checkForeignKeys violations
-      | null violations = putStrLn "OK"
-      | otherwise = putStrLn $ "NOT OK, found " ++ show (length violations) ++ " violations"
 
 updateDb :: App ()
 updateDb = do
@@ -245,8 +209,3 @@ emptyString xs
     | all isSpace xs = Nothing
     | otherwise = Just xs
 
-withDatabase :: (Connection -> App a) -> App a
-withDatabase f = ask >>= \ cfg -> bracket
-    (liftIO . open $ connectionString cfg)
-    (liftIO . close)
-    (\ conn -> liftIO (enableForeignKeys conn) >> f conn)
