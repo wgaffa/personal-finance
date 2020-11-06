@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 681ae0729b512ad473a77691d29bc01d4361389335dc3c05324469d54083d25e
+-- hash: da07f946ca528657b3d658c4a33aa621c3af09426f2e5b383f81cc1d48127a20
 
 name:           expense-tracker
 version:        0.2.0.0
@@ -52,6 +52,7 @@ executable dee-book
       Core.PrettyPrint
       Core.Prompt
       Core.Utils
+      Data.Task
       OptParser
       Paths_expense_tracker
   hs-source-dirs:
