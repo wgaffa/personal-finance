@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_HADDOCK prune #-}
 
 module OptParser
     ( Options(..)
@@ -34,16 +35,20 @@ import Development.GitRev (gitHash)
 import Data.Version (showVersion)
 import Paths_expense_tracker (version)
 
+-- | The commandline arguments for the application
 data Options = Options
-    { dbConnection :: Maybe String
-    , optCommand :: Command
+    { dbConnection :: Maybe String -- ^The file or connection to use for the database
+    , optCommand :: Command -- ^The command we wish to run
     }
 
+-- | Type that holds the arguments of the command /show/
 data ShowOptions = ShowOptions
-    { filterAccount :: Int
+    { filterAccount :: Int -- ^The account number to show
     , showId :: Bool
     }
 
+-- | Different commands that can be passed to the application and
+-- their arguments if used
 data Command
     = List
     | CreateAccount
@@ -108,6 +113,7 @@ options =
     <$> connectionOpt
     <*> commands
 
+-- | Runs the parser and returns an 'Options' type
 execArgParser :: IO Options
 execArgParser = execParser opts
   where

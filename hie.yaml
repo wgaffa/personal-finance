@@ -1,34 +1,40 @@
 cradle:
-  stack:
-    - path: "./src"
-      component: "expense-tracker:lib"
+  cabal:
+    - path: "src"
+      component: "lib:expense-tracker"
 
-    - path: "./app/Main.hs"
+    - path: "app/Main.hs"
       component: "expense-tracker:exe:dee-book"
 
-    - path: "./app/Core/Database.hs"
+    - path: "app/Command/CheckHealth.hs"
       component: "expense-tracker:exe:dee-book"
 
-    - path: "./app/Core/Error.hs"
+    - path: "app/Core/App.hs"
       component: "expense-tracker:exe:dee-book"
 
-    - path: "./app/Core/PrettyPrint.hs"
+    - path: "app/Core/Database.hs"
       component: "expense-tracker:exe:dee-book"
 
-    - path: "./app/Core/Prompt.hs"
+    - path: "app/Core/Error.hs"
       component: "expense-tracker:exe:dee-book"
 
-    - path: "./app/Core/Utils.hs"
+    - path: "app/Core/PrettyPrint.hs"
       component: "expense-tracker:exe:dee-book"
 
-    - path: "./app/OptParser.hs"
+    - path: "app/Core/Prompt.hs"
       component: "expense-tracker:exe:dee-book"
 
-    - path: "./app/Repl.hs"
+    - path: "app/Core/Utils.hs"
       component: "expense-tracker:exe:dee-book"
 
-    - path: "./app/Paths_expense_tracker.hs"
+    - path: "app/Data/Task.hs"
       component: "expense-tracker:exe:dee-book"
 
-    - path: "./test"
+    - path: "app/OptParser.hs"
+      component: "expense-tracker:exe:dee-book"
+
+    - path: "app/Paths_expense_tracker.hs"
+      component: "expense-tracker:exe:dee-book"
+
+    - path: "test"
       component: "expense-tracker:test:expense-tracker-test"

@@ -1,9 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# OPTIONS_HADDOCK hide, prune #-}
 
 module Main where
 
@@ -15,25 +13,18 @@ import qualified Data.Text as Text
 import Text.Read (readMaybe)
 import Data.Either (isLeft)
 
-import Control.Monad (when, unless, forM_, forM)
-import Control.Monad.Catch
-    ( MonadThrow, MonadCatch, MonadMask
-    , bracket)
+import Control.Monad (when, forM_, forM)
 import Control.Monad.Except
     ( MonadIO(liftIO),
       MonadError(),
-      ExceptT,
       liftEither,
       runExceptT )
 import Control.Monad.Trans.Maybe ( MaybeT(runMaybeT) )
 import Control.Monad.Reader
-    ( ReaderT(runReaderT),
-      MonadReader(ask) )
+    ( ReaderT(runReaderT) )
 
 import Database.SQLite.Simple
     ( withTransaction,
-      close,
-      open,
       Connection
     )
 
@@ -89,22 +80,20 @@ showAccounts = do
         accounts <- allAccounts conn
         ledgers <- forM accounts
           (\ Account{..} -> findLedger number conn) :: IO [Ledger Int]
-        let triage = map (\ (Ledger a ts) -> (a, accountBalance a ts)) ledgers
+        let triage = map (\ l@(Ledger a _) -> (a, value . accountBalance $ l)) ledgers
             in putStr $ renderTriageBalance triage
   where
-    accountBalance x = value . toBalance x id . balance . map amount
     value (TransactionAmount _ a) = a
-    amount (LedgerEntry _ x)= x
 
 showTransactions :: ShowOptions -> App ()
 showTransactions ShowOptions{..} =
-    (fmap unAbsoluteValue
+    ((fmap unAbsoluteValue
         <$> ((liftEither
                 . maybeToEither InvalidNumber
                 . accountNumber $ filterAccount)
-            >>= (\ accountNumber ->
-                withDatabase (liftIO . findLedger accountNumber)
-            )))
+            >>= (\ number ->
+                withDatabase (liftIO . findLedger number)
+            ))) :: App (Ledger Int))
     >>= liftIO . putStrLn . renderLedger
 
 createAccount :: App ()
