@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: da07f946ca528657b3d658c4a33aa621c3af09426f2e5b383f81cc1d48127a20
+-- hash: a65302b8a38d32e9a93a6e216c47bec2e7d3c2ba9d85376f3d23cb24d400f93b
 
 name:           expense-tracker
 version:        0.2.0.0
@@ -57,7 +57,7 @@ executable dee-book
       Paths_expense_tracker
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
       base >=4.7 && <5
     , boxes

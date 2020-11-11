@@ -11,8 +11,7 @@ module OptParser
 import Control.Applicative ( optional )
 
 import Options.Applicative
-    ( optional,
-      switch,
+    ( switch,
       argument,
       auto,
       command,
@@ -29,7 +28,6 @@ import Options.Applicative
       helper,
       hsubparser,
       Parser )
-import Data.Semigroup ((<>))
 
 import Development.GitRev (gitHash)
 import Data.Version (showVersion)

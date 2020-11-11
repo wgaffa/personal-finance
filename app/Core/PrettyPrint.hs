@@ -125,7 +125,7 @@ journalEntryRow (JournalEntry account amount) =
 renderLedger ::
   (Integral a) => Ledger a -> String
 renderLedger ledger@(Ledger account entries) =
-    render $ title // separator // body // separator // balance
+    render $ title // separator // body // separator // balanceBox
   where
     body =
         hsep 2 top
@@ -135,7 +135,7 @@ renderLedger ledger@(Ledger account entries) =
         . map ledgerRow $ entries
     title = alignHoriz center2 width (boxAccount account)
     separator = text $ replicate width '-'
-    balance = text "Balance:" <+> (
+    balanceBox = text "Balance:" <+> (
         hsep 1 left
         . map (text . Text.unpack)
         . balanceRow

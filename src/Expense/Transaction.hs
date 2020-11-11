@@ -17,13 +17,7 @@ module Expense.Transaction(
     , parseTransactionAmount
 ) where
 
--- Text manipulation
-import qualified Data.Text as Text
-
 import Data.Function ( on )
-
--- time and date
-import Data.Time (Day)
 
 -- | Different transaction types
 data TransactionType = Debit | Credit

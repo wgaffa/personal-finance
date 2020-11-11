@@ -77,9 +77,9 @@ unAccountName (AccountName n) = n
 
 -- | Smart constructor for 'AccountName'
 accountName :: Text.Text -> Maybe AccountName
-accountName name
-    | Text.all isSpace name = Nothing
-    | otherwise = Just $ AccountName name
+accountName n
+    | Text.all isSpace n = Nothing
+    | otherwise = Just $ AccountName n
 
 -- | An account number is any positive number
 newtype AccountNumber = AccountNumber Int
@@ -94,8 +94,8 @@ emptyAccountNumber = AccountNumber 0
 
 -- | Smart constructor for 'AccountNumber'
 accountNumber :: Int -> Maybe AccountNumber
-accountNumber number
-    | number > 0 = Just $ AccountNumber number
+accountNumber n
+    | n > 0 = Just $ AccountNumber n
     | otherwise = Nothing
 
 -- | Account structure

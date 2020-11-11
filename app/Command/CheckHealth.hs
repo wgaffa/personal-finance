@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Command.CheckHealth
   (
   -- * Default tasks
@@ -56,6 +58,7 @@ taskDatabaseVersion =
       | v > latestSchemaVersion =
           return . Error $ show v ++ " is newer than the latest " ++ show latestSchemaVersion ++
             ", undefined behaviour"
+      | otherwise = error "unreachable code, if you see this please report this"
 
 taskForeignKeys :: App TaskStatus
 taskForeignKeys =
