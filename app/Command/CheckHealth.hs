@@ -15,6 +15,7 @@ import Control.Monad.IO.Class (MonadIO(liftIO))
 
 import Core.App
 import Core.Database
+import Core.PrettyPrint
 import Data.Task
 
 import Expense.Transaction
@@ -43,8 +44,8 @@ taskBalance =
     >>= validateBalance
   where
     validateBalance xs
-      | zeroBalance xs = return Ok
-      | otherwise = return $ Error mempty
+      | balance xs == 0 = return Ok
+      | otherwise = return $ Error . renderCurrency $ balance xs
 
 taskDatabaseVersion :: App TaskStatus
 taskDatabaseVersion =

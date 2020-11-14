@@ -3,6 +3,7 @@
 
 module Core.PrettyPrint
     ( printAccount
+    , renderCurrency
     , renderJournal
     , printListAccounts
     , renderLedger
@@ -66,6 +67,9 @@ printListAccounts =
     . map formatColumns
     . transpose
     . map accountRow
+
+renderCurrency :: (Integral a) => a -> String
+renderCurrency = Text.unpack . numberField
 
 renderTriageBalance ::
     (Integral a, Show a)
