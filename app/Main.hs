@@ -1,55 +1,61 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_HADDOCK hide, prune #-}
 
 module Main where
 
 import System.IO ()
 
+import Data.Char (isSpace)
+import Data.Either (isLeft)
 import Data.Maybe (fromMaybe)
-import Data.Char ( isSpace )
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
-import Data.Either (isLeft)
 
-import Control.Monad (when, forM_, forM)
-import Control.Monad.Except
-    ( MonadIO(liftIO),
-      MonadError(),
-      liftEither,
-      runExceptT )
-import Control.Monad.Trans.Maybe ( MaybeT(runMaybeT) )
-import Control.Monad.Reader
-    ( ReaderT(runReaderT) )
+import Control.Monad (forM, forM_, when)
+import Control.Monad.Except (
+    MonadError (),
+    MonadIO (liftIO),
+    liftEither,
+    runExceptT,
+ )
+import Control.Monad.Reader (
+    ReaderT (runReaderT),
+ )
+import Control.Monad.Trans.Maybe (MaybeT (runMaybeT))
 
-import Database.SQLite.Simple
-    ( withTransaction,
-      Connection
-    )
+import Database.SQLite.Simple (
+    Connection,
+    withTransaction,
+ )
 
-import OptParser
+import Command.CheckHealth
 import Core.Database
 import Core.PrettyPrint
-import Command.CheckHealth
+import OptParser
 
-import Expense.Transaction
 import Expense.Account
+import Expense.Transaction
 
 import Core.App
-import Core.Utils
-import Core.Prompt
 import Core.Error
+import Core.Prompt
+import Core.Utils
 import Utility.Absolute
 
 main :: IO ()
-main = readEnvironment
-    >>= \ env -> (runExceptT
-        . flip runReaderT env
-        . runApp
-        . dispatcher
-        . command $ env)
-    >>= either perror return
+main =
+    readEnvironment
+        >>= \env ->
+            ( runExceptT
+                . flip runReaderT env
+                . runApp
+                . dispatcher
+                . command
+                $ env
+            )
+                >>= either perror return
   where
     perror x = putStrLn $ "Error: " ++ show x
 
@@ -64,10 +70,11 @@ dispatcher CheckHealth = runTasks checkHealth
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
     Options {..} <- execArgParser
-    return AppEnvironment
-        { connectionString = fromMaybe "db.sqlite3" dbConnection
-        , command = optCommand
-        }
+    return
+        AppEnvironment
+            { connectionString = fromMaybe "db.sqlite3" dbConnection
+            , command = optCommand
+            }
 
 updateDb :: App ()
 updateDb = do
@@ -76,32 +83,43 @@ updateDb = do
 
 showAccounts :: App ()
 showAccounts = do
-    withDatabase $ liftIO . \ conn -> do
-        accounts <- allAccounts conn
-        ledgers <- forM accounts
-          (\ Account{..} -> findLedger number conn) :: IO [Ledger Int]
-        let triage = map (\ l@(Ledger a _) -> (a, value . accountBalance $ l)) ledgers
-            in putStr $ renderTriageBalance triage
+    withDatabase $
+        liftIO . \conn -> do
+            accounts <- allAccounts conn
+            ledgers <-
+                forM
+                    accounts
+                    (\Account {..} -> findLedger number conn) ::
+                    IO [Ledger Int]
+            let triage = map (\l@(Ledger a _) -> (a, value . accountBalance $ l)) ledgers
+             in putStr $ renderTriageBalance triage
   where
     value (TransactionAmount _ a) = a
 
 showTransactions :: ShowOptions -> App ()
-showTransactions ShowOptions{..} =
-    ((fmap unAbsoluteValue
-        <$> ((liftEither
-                . maybeToEither InvalidNumber
-                . accountNumber $ filterAccount)
-            >>= (\ number ->
-                withDatabase (liftIO . findLedger number)
-            ))) :: App (Ledger Int))
-    >>= liftIO . putStrLn . renderLedger
+showTransactions ShowOptions {..} =
+    ( ( fmap unAbsoluteValue
+            <$> ( ( liftEither
+                        . maybeToEither InvalidNumber
+                        . accountNumber
+                        $ filterAccount
+                  )
+                    >>= ( \number ->
+                            withDatabase (liftIO . findLedger number)
+                        )
+                )
+      ) ::
+        App (Ledger Int)
+    )
+        >>= liftIO . putStrLn . renderLedger
 
 createAccount :: App ()
 createAccount = do
     acc <- createAccountInteractive
     liftIO $ putStrLn "Attempting to save account"
     res <- withDatabase (saveAccount acc)
-    liftIO $ putStr "Saved account: "
+    liftIO $
+        putStr "Saved account: "
             >> printAccount res
             >> putChar '\n'
 
@@ -111,22 +129,27 @@ addTransaction = do
     date <- promptDate "Date: " now
     desc <- promptExcept "Note: " $ pure . emptyString
     journal <- transactionInteractive $ Journal (Details date desc) []
-    journalId <- withDatabase $ liftIO . \ conn -> do
-        withTransaction conn $ do
-            res <- runExceptT $ saveJournal (fmap unAbsoluteValue journal) conn
-            case res of
-              (Right i) -> pure i
-              (Left _) -> error "Unexpected error when writing journal"
-    withDatabase $ liftIO . \ conn -> do
-        withTransaction conn $ do
-            forM_ (entries journal) $ \ acc -> do
-                res <- runExceptT $ saveTransaction
-                    (number . account $ acc)
-                    journalId
-                    (unAbsoluteValue <$> amount acc)
-                     conn
-                when (isLeft res) $
-                    error "Unexpected error when saving transaction"
+    journalId <-
+        withDatabase $
+            liftIO . \conn -> do
+                withTransaction conn $ do
+                    res <- runExceptT $ saveJournal (fmap unAbsoluteValue journal) conn
+                    case res of
+                        (Right i) -> pure i
+                        (Left _) -> error "Unexpected error when writing journal"
+    withDatabase $
+        liftIO . \conn -> do
+            withTransaction conn $ do
+                forM_ (entries journal) $ \acc -> do
+                    res <-
+                        runExceptT $
+                            saveTransaction
+                                (number . account $ acc)
+                                journalId
+                                (unAbsoluteValue <$> amount acc)
+                                conn
+                    when (isLeft res) $
+                        error "Unexpected error when saving transaction"
     return ()
   where
     entries (Journal _ xs) = xs
@@ -134,62 +157,70 @@ addTransaction = do
     amount (JournalEntry _ x) = x
 
 createAccountInteractive ::
-    (MonadError AccountError m, MonadIO m)
-    => m Account
-createAccountInteractive = Account
-    <$> promptExcept "Number: "
-        (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
-    <*> promptExcept "Name: "
-        (maybeToEither InvalidName . accountName . Text.pack)
-    <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
+    (MonadError AccountError m, MonadIO m) =>
+    m Account
+createAccountInteractive =
+    Account
+        <$> promptExcept
+            "Number: "
+            (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
+        <*> promptExcept
+            "Name: "
+            (maybeToEither InvalidName . accountName . Text.pack)
+        <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
 
 findAccountInteractive ::
-    (MonadError AccountError m, MonadIO m)
-    => Connection
-    -> m Account
+    (MonadError AccountError m, MonadIO m) =>
+    Connection ->
+    m Account
 findAccountInteractive conn =
-    promptExcept "Account number: "
+    promptExcept
+        "Account number: "
         (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
-    >>= liftIO . runMaybeT . flip findAccount conn
-    >>= liftEither . maybeToEither AccountNotFound
+        >>= liftIO . runMaybeT . flip findAccount conn
+        >>= liftEither . maybeToEither AccountNotFound
 
 createTransactionAmountInteractive ::
-    (Accountable a, MonadError AccountError m, MonadIO m)
-    => a
-    -> m (TransactionAmount (AbsoluteValue Double))
+    (Accountable a, MonadError AccountError m, MonadIO m) =>
+    a ->
+    m (TransactionAmount (AbsoluteValue Double))
 createTransactionAmountInteractive x =
     createAccountTransactionAmount x
-    <$> promptExcept "Amount: " (maybeToEither InvalidNumber . readMaybe)
+        <$> promptExcept "Amount: " (maybeToEither InvalidNumber . readMaybe)
 
 createAccountTransactionAmount ::
-    (Accountable a, Num b, Eq b)
-    => a -> b -> TransactionAmount (AbsoluteValue b)
+    (Accountable a, Num b, Eq b) =>
+    a ->
+    b ->
+    TransactionAmount (AbsoluteValue b)
 createAccountTransactionAmount x m
     | signum m == -1 = decrease x . absoluteValue $ m
     | otherwise = increase x . absoluteValue $ m
 
 transactionInteractive ::
-    Journal (AbsoluteValue Int)
-    -> App (Journal (AbsoluteValue Int))
+    Journal (AbsoluteValue Int) ->
+    App (Journal (AbsoluteValue Int))
 transactionInteractive journal@(Journal details _) =
     findAccountInDatabase >>= readAccount >>= readEntries
   where
     findAccountInDatabase =
-        withDatabase $ \ conn -> do
-          acc <- findAccountInteractive conn
-          liftIO $ printAccount acc
-          return acc
+        withDatabase $ \conn -> do
+            acc <- findAccountInteractive conn
+            liftIO $ printAccount acc
+            return acc
     readAccount account =
         Journal details . (: entries journal) . JournalEntry account
-          <$> (fmap (absoluteValue . round . (*100) . unAbsoluteValue)
-            <$> createTransactionAmountInteractive account)
+            <$> ( fmap (absoluteValue . round . (* 100) . unAbsoluteValue)
+                    <$> createTransactionAmountInteractive account
+                )
     readEntries x =
         (liftIO . putStrLn . renderJournal . fmap unAbsoluteValue $ x)
-        >> (pure . balance . map (fmap unAbsoluteValue . amount) $ entries x)
-        >>= (\ currentBalance ->
-                if currentBalance == 0
-                    then pure x
-                    else transactionInteractive x)
+            >> (pure . balance . map (fmap unAbsoluteValue . amount) $ entries x)
+            >>= ( \currentBalance ->
+                    if currentBalance == 0
+                        then pure x
+                        else transactionInteractive x
+                )
     entries (Journal _ xs) = xs
     amount (JournalEntry _ x) = x
 
@@ -197,4 +228,3 @@ emptyString :: String -> Maybe String
 emptyString xs
     | all isSpace xs = Nothing
     | otherwise = Just xs
-

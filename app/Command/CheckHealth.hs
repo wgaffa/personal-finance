@@ -1,17 +1,17 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Command.CheckHealth
-  (
-  -- * Default tasks
-  checkHealth
-  -- * Interpreters
-  , runTasks
-  ) where
+module Command.CheckHealth (
+    -- * Default tasks
+    checkHealth,
+
+    -- * Interpreters
+    runTasks,
+) where
 
 import Prelude hiding (print)
 
-import Control.Monad.Free (Free(..))
-import Control.Monad.IO.Class (MonadIO(liftIO))
+import Control.Monad.Free (Free (..))
+import Control.Monad.IO.Class (MonadIO (liftIO))
 
 import Core.App
 import Core.Database
@@ -28,10 +28,13 @@ instance Show TaskStatus where
 checkHealth :: Free (Task TaskStatus) ()
 checkHealth =
     printLn "Checking transactions"
-    >> print "Balance: " >> task taskBalance >>= printLn . show
-    >> printLn "Checking database integrity"
-    >> print "DB version: " >> task taskDatabaseVersion >>= printLn . show
-    >> print "Foreign keys: " >> task taskForeignKeys >>= printLn . show
+        >> print "Balance: "
+        >> task taskBalance >>= printLn . show
+        >> printLn "Checking database integrity"
+        >> print "DB version: "
+        >> task taskDatabaseVersion >>= printLn . show
+        >> print "Foreign keys: "
+        >> task taskForeignKeys >>= printLn . show
 
 runTasks :: (Show a) => Free (Task a) r -> App r
 runTasks (Free (Task action g)) = action >>= runTasks . g
@@ -41,32 +44,32 @@ runTasks (Pure r) = return r
 taskBalance :: App TaskStatus
 taskBalance =
     (withDatabase (liftIO . allTransactions) :: App [TransactionAmount Int])
-    >>= validateBalance
+        >>= validateBalance
   where
     validateBalance xs
-      | balance xs == 0 = return Ok
-      | otherwise = return $ Error . renderCurrency $ balance xs
+        | balance xs == 0 = return Ok
+        | otherwise = return $ Error . renderCurrency $ balance xs
 
 taskDatabaseVersion :: App TaskStatus
 taskDatabaseVersion =
     withDatabase (liftIO . schemaVersion)
-    >>= validateDatabaseVersion
+        >>= validateDatabaseVersion
   where
     validateDatabaseVersion v
-      | v == latestSchemaVersion = return Ok
-      | v < latestSchemaVersion =
-          return . Warning $ show v ++ " needs to updated to " ++ show latestSchemaVersion
-      | v > latestSchemaVersion =
-          return . Error $ show v ++ " is newer than the latest " ++ show latestSchemaVersion ++
-            ", undefined behaviour"
-      | otherwise = error "unreachable code, if you see this please report this"
+        | v == latestSchemaVersion = return Ok
+        | v < latestSchemaVersion =
+            return . Warning $ show v ++ " needs to updated to " ++ show latestSchemaVersion
+        | v > latestSchemaVersion =
+            return . Error $
+                show v ++ " is newer than the latest " ++ show latestSchemaVersion
+                    ++ ", undefined behaviour"
+        | otherwise = error "unreachable code, if you see this please report this"
 
 taskForeignKeys :: App TaskStatus
 taskForeignKeys =
     withDatabase (liftIO . foreignKeysViolations)
-    >>= validateForeignKeys
+        >>= validateForeignKeys
   where
     validateForeignKeys violations
-      | null violations = return Ok
-      | otherwise = return . Warning $ "Found " ++ show (length violations) ++ " violations"
-
+        | null violations = return Ok
+        | otherwise = return . Warning $ "Found " ++ show (length violations) ++ " violations"

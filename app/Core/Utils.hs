@@ -1,22 +1,26 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Core.Utils
-    ( maybeToEither
-    , today
-    ) where
+module Core.Utils (
+    maybeToEither,
+    today,
+) where
 
 import Data.Data
 
 import Data.Time
 
 import Database.SQLite.Simple (
-    SQLData(SQLInteger), ResultError(ConversionFailed)
-    )
-import Database.SQLite.Simple.Ok ( Ok(Ok) )
-import Database.SQLite.Simple.FromField
-    (returnError,  fieldData, FromField(..) )
+    ResultError (ConversionFailed),
+    SQLData (SQLInteger),
+ )
+import Database.SQLite.Simple.FromField (
+    FromField (..),
+    fieldData,
+    returnError,
+ )
+import Database.SQLite.Simple.Ok (Ok (Ok))
 
-import Utility.Absolute ( AbsoluteValue, absoluteValue )
+import Utility.Absolute (AbsoluteValue, absoluteValue)
 
 maybeToEither :: e -> Maybe a -> Either e a
 maybeToEither l Nothing = Left l

@@ -1,23 +1,28 @@
-module Expense.Transaction(
+module Expense.Transaction (
     -- * Types
-    TransactionAmount(..)
-    , TransactionType(..)
+    TransactionAmount (..),
+    TransactionType (..),
+
     -- * Functions
+
     -- ** Constructors
-    , credit
-    , debit
+    credit,
+    debit,
+
     -- ** Transformations
-    , splitTransactions
-    , toNumeral
+    splitTransactions,
+    toNumeral,
+
     -- ** Calculations
-    , zeroBalance
-    , mzeroBalance
-    , balance
+    zeroBalance,
+    mzeroBalance,
+    balance,
+
     -- ** Parsing
-    , parseTransactionAmount
+    parseTransactionAmount,
 ) where
 
-import Data.Function ( on )
+import Data.Function (on)
 
 -- | Different transaction types
 data TransactionType = Debit | Credit
@@ -51,30 +56,31 @@ mzeroBalance :: (Eq a, Monoid a) => [TransactionAmount a] -> Bool
 mzeroBalance xs =
     let toAmount (TransactionAmount _ a) = a
         (debits, credits) = mapPair (map toAmount) $ splitTransactions xs
-    in mconcat debits == mconcat credits
+     in mconcat debits == mconcat credits
   where
     mapPair f = uncurry ((,) `on` f)
 
-{-|
+{- |
     Return the numeral representation of a transaction entry.
 
     A Debit is represented as positive and Credit as negative
 -}
 toNumeral :: (Num a) => TransactionAmount a -> a
-toNumeral (TransactionAmount t x) = x * case t of
-    Debit -> 1
-    Credit -> -1
+toNumeral (TransactionAmount t x) =
+    x * case t of
+        Debit -> 1
+        Credit -> -1
 
 -- | Split transactions in debits and credits
 splitTransactions ::
-    [TransactionAmount a]
-    -> ([TransactionAmount a], [TransactionAmount a])
+    [TransactionAmount a] ->
+    ([TransactionAmount a], [TransactionAmount a])
 splitTransactions =
     foldr split ([], [])
   where
     split trans@(TransactionAmount t _) acc = splitTypes t trans acc
-    splitTypes Debit x (debits, credits) = (x:debits, credits)
-    splitTypes Credit x (debits, credits) = (debits, x:credits)
+    splitTypes Debit x (debits, credits) = (x : debits, credits)
+    splitTypes Credit x (debits, credits) = (debits, x : credits)
 
 parseTransactionAmount :: (Ord a, Num a) => (a -> b) -> a -> TransactionAmount b
 parseTransactionAmount f n

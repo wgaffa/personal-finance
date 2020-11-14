@@ -1,14 +1,15 @@
-module Utility.Absolute 
-    (
+module Utility.Absolute (
     -- * Types
-      AbsoluteValue
-    -- * Constructors
-    , absoluteValue
-    , unAbsoluteValue
-    ) where
+    AbsoluteValue,
 
--- | Absolute value container for any absolute number,
--- see constructor 'absoluteValue'
+    -- * Constructors
+    absoluteValue,
+    unAbsoluteValue,
+) where
+
+{- | Absolute value container for any absolute number,
+ see constructor 'absoluteValue'
+-}
 newtype AbsoluteValue a = AbsoluteValue a
     deriving (Ord, Eq, Show)
 
@@ -22,7 +23,8 @@ instance (Num a) => Monoid (AbsoluteValue a) where
 unAbsoluteValue :: AbsoluteValue a -> a
 unAbsoluteValue (AbsoluteValue a) = a
 
--- | Constructor for 'AbsoluteValue'
--- This creates an absolute value buy applying 'Prelude.abs' to the argument
+{- | Constructor for 'AbsoluteValue'
+ This creates an absolute value buy applying 'Prelude.abs' to the argument
+-}
 absoluteValue :: (Num a) => a -> AbsoluteValue a
 absoluteValue = AbsoluteValue . abs
