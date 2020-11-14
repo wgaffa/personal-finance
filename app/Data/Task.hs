@@ -1,12 +1,12 @@
 module Data.Task (
-    -- * Types
-    Task (..),
-    TaskStatus (..),
+  -- * Types
+  Task (..),
+  TaskStatus (..),
 
-    -- * Task constructors
-    print,
-    printLn,
-    task,
+  -- * Task constructors
+  print,
+  printLn,
+  task,
 ) where
 
 import Prelude hiding (print)
@@ -17,20 +17,20 @@ import Core.App
 
 -- | This is the return value for most tasks
 data TaskStatus
-    = -- | Return if everything is ok
-      Ok
-    | -- | Return when if we are in a state that undefined behaviour may occur
-      Error String
-    | -- | Return when task is in a state it can still function somewhat
-      Warning String
+  = -- | Return if everything is ok
+    Ok
+  | -- | Return when if we are in a state that undefined behaviour may occur
+    Error String
+  | -- | Return when task is in a state it can still function somewhat
+    Warning String
 
 data Task a next
-    = Task (App a) (a -> next)
-    | Print String next
+  = Task (App a) (a -> next)
+  | Print String next
 
 instance Functor (Task a) where
-    fmap f (Task x g) = Task x (f . g)
-    fmap f (Print x next) = Print x (f next)
+  fmap f (Task x g) = Task x (f . g)
+  fmap f (Print x next) = Print x (f next)
 
 print :: String -> Free (Task a) ()
 print x = liftF $ Print x ()
