@@ -66,6 +66,7 @@ dispatcher AddTransaction = addTransaction
 dispatcher (ShowAccount n) = showTransactions n
 dispatcher UpdateDatabase = updateDb
 dispatcher CheckHealth = runTasks checkHealth
+dispatcher AccountingPeriod = showAccountingPeriod
 
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
@@ -80,6 +81,11 @@ updateDb :: App ()
 updateDb = do
     withDatabase $ liftIO . updateDatabase
     liftIO $ putStrLn "Database updated"
+
+showAccountingPeriod :: App ()
+showAccountingPeriod = do
+    period <- withDatabase currentAccountingPeriod
+    liftIO $ putStrLn period
 
 showAccounts :: App ()
 showAccounts = do

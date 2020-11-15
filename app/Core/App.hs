@@ -44,7 +44,7 @@ newtype App a = App
     }
     deriving (Functor, Applicative, Monad, MonadIO)
     deriving newtype (MonadReader AppEnvironment, MonadError AccountError)
-    deriving newtype (MonadThrow, MonadCatch, MonadMask)
+    deriving newtype (MonadThrow, MonadCatch, MonadMask, MonadFail)
 
 withDatabase :: (Connection -> App a) -> App a
 withDatabase f =

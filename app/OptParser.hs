@@ -59,6 +59,7 @@ data Command
     | ShowAccount ShowOptions
     | UpdateDatabase
     | CheckHealth
+    | AccountingPeriod
 
 connectionOpt :: Parser (Maybe String)
 connectionOpt =
@@ -76,6 +77,7 @@ commands =
             <> showCommand
             <> updateCommand
             <> checkHealthCommand
+            <> showAccountingPeriod
         )
   where
     listCommand =
@@ -110,6 +112,13 @@ commands =
             ( info
                 (pure CheckHealth)
                 (progDesc "Check the health of the application and database")
+            )
+    showAccountingPeriod =
+        command
+            "period"
+            ( info
+                (pure AccountingPeriod)
+                (progDesc "Show the current accounting period")
             )
 
 showOptions :: Parser ShowOptions

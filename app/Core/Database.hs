@@ -4,6 +4,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Core.Database (
+    currentAccountingPeriod,
     saveAccount,
     saveTransaction,
     saveJournal,
@@ -244,6 +245,18 @@ findLedger number conn =
     liftIO $
         findAccount number conn
             >>= flip allAccountTransactions conn
+
+{- | Get the current accounting period.
+ This selects the last period in the database table
+-}
+currentAccountingPeriod :: (MonadFail m, MonadIO m) => Connection -> m String
+currentAccountingPeriod conn = do
+    res <- liftIO $ query_ conn q
+    case res of
+        (x : _) -> return . fromOnly $ x
+        _ -> fail "no record found"
+  where
+    q = "select name from accounting_periods where id=(SELECT MAX(id) from accounting_periods)"
 
 -- | Find the id of an account element in the database
 elementId ::
