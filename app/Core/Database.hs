@@ -402,7 +402,44 @@ schema =
         , flip execute_ "ALTER TABLE new_transactions RENAME TO transactions"
         , flip execute_ "PRAGMA foreign_keys=ON"
         ]
+    ,
+        [ -- version 6
+          flip execute_ "PRAGMA foreign_keys=OFF"
+        , flip
+            execute_
+            "CREATE TABLE accounting_periods (\
+            \id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
+        , flip
+            execute_
+            "INSERT INTO accounting_periods \
+            \VALUES (1, \"Starting period\")"
+        , flip
+            execute_
+            "CREATE TABLE new_transactions (\
+            \id INTEGER PRIMARY KEY,\
+            \journal_id INTEGER NOT NULL,\
+            \account_id INTEGER NOT NULL,\
+            \type_id INTEGER NOT NULL,\
+            \period_id INTEGER NOT NULL,\
+            \amount INTEGER NOT NULL,\
+            \FOREIGN KEY (account_id) REFERENCES accounts (id) \
+            \FOREIGN KEY (journal_id) REFERENCES journals (id) \
+            \FOREIGN KEY (period_id) REFERENCES accounting_periods (id) \
+            \FOREIGN KEY (type_id) REFERENCES transactiontypes (id))"
+        , copyTransactionsV5ToV6
+        , flip execute_ "DROP TABLE transactions"
+        , flip execute_ "ALTER TABLE new_transactions RENAME TO transactions"
+        , flip execute_ "PRAGMA foreign_keys=ON"
+        ]
     ]
+
+copyTransactionsV5ToV6 :: Connection -> IO ()
+copyTransactionsV5ToV6 conn =
+    execute_
+        conn
+        "INSERT INTO new_transactions \
+        \SELECT id, journal_id, account_id, type_id, 1, amount \
+        \FROM transactions"
 
 copyTransactionsV4ToV5 :: Connection -> IO ()
 copyTransactionsV4ToV5 conn = do
