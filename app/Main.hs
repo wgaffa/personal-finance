@@ -42,7 +42,7 @@ import Core.App
 import Core.Error
 import Core.Prompt
 import Core.Utils
-import Utility.Absolute
+import Utils.Database
 
 main :: IO ()
 main =
@@ -104,17 +104,14 @@ showAccounts = do
 
 showTransactions :: ShowOptions -> App ()
 showTransactions ShowOptions {..} =
-    ( ( fmap unAbsoluteValue
-            <$> ( ( liftEither
-                        . maybeToEither InvalidNumber
-                        . accountNumber
-                        $ filterAccount
-                  )
-                    >>= ( \number ->
-                            withDatabase (liftIO . findLedger number)
-                        )
-                )
-      ) ::
+    ( ( liftEither
+            . maybeToEither InvalidNumber
+            . accountNumber
+            $ filterAccount
+      )
+        >>= ( \number ->
+                withDatabase (liftIO . findLedger number)
+            ) ::
         App (Ledger Int)
     )
         >>= liftIO . putStrLn . renderLedger
@@ -139,7 +136,7 @@ addTransaction = do
         withDatabase $
             liftIO . \conn -> do
                 withTransaction conn $ do
-                    res <- runExceptT $ saveJournal (fmap unAbsoluteValue journal) conn
+                    res <- runExceptT $ saveJournal journal conn
                     case res of
                         (Right i) -> pure i
                         (Left _) -> error "Unexpected error when writing journal"
@@ -152,7 +149,7 @@ addTransaction = do
                             saveTransaction
                                 (number . account $ acc)
                                 journalId
-                                (unAbsoluteValue <$> amount acc)
+                                (amount acc)
                                 conn
                     when (isLeft res) $
                         error "Unexpected error when saving transaction"
@@ -189,23 +186,24 @@ findAccountInteractive conn =
 createTransactionAmountInteractive ::
     (Accountable a, MonadError AccountError m, MonadIO m) =>
     a ->
-    m (TransactionAmount (AbsoluteValue Double))
+    m (TransactionAmount Double)
 createTransactionAmountInteractive x =
     createAccountTransactionAmount x
         <$> promptExcept "Amount: " (maybeToEither InvalidNumber . readMaybe)
 
+-- | Take an 'Accountable' a and increase or decrease it based on b
 createAccountTransactionAmount ::
     (Accountable a, Num b, Eq b) =>
     a ->
     b ->
-    TransactionAmount (AbsoluteValue b)
+    TransactionAmount b
 createAccountTransactionAmount x m
-    | signum m == -1 = decrease x . absoluteValue $ m
-    | otherwise = increase x . absoluteValue $ m
+    | signum m == -1 = decrease x . abs $ m
+    | otherwise = increase x . abs $ m
 
 transactionInteractive ::
-    Journal (AbsoluteValue Int) ->
-    App (Journal (AbsoluteValue Int))
+    Journal Int ->
+    App (Journal Int)
 transactionInteractive journal@(Journal details _) =
     findAccountInDatabase >>= readAccount >>= readEntries
   where
@@ -216,12 +214,12 @@ transactionInteractive journal@(Journal details _) =
             return acc
     readAccount account =
         Journal details . (: entries journal) . JournalEntry account
-            <$> ( fmap (absoluteValue . round . (* 100) . unAbsoluteValue)
+            <$> ( fmap (round . (* 100))
                     <$> createTransactionAmountInteractive account
                 )
     readEntries x =
-        (liftIO . putStrLn . renderJournal . fmap unAbsoluteValue $ x)
-            >> (pure . balance . map (fmap unAbsoluteValue . amount) $ entries x)
+        (liftIO . putStrLn . renderJournal $ x)
+            >> (pure . balance . map amount $ entries x)
             >>= ( \currentBalance ->
                     if currentBalance == 0
                         then pure x

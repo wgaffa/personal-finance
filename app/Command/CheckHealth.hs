@@ -19,6 +19,7 @@ import Core.PrettyPrint
 import Data.Task
 
 import Expense.Transaction
+import Utils.Database
 
 instance Show TaskStatus where
     show Ok = "OK"
