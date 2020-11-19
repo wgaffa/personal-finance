@@ -41,8 +41,7 @@ import Expense.Transaction
 import Core.App
 import Core.Error
 import Core.Prompt
-import Core.Utils
-import Utils.Database
+import Utils
 
 main :: IO ()
 main =

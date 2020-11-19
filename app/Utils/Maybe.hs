@@ -1,13 +1,10 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Core.Utils (
+module Utils.Maybe (
     maybeToEither,
-    today,
 ) where
 
 import Data.Data
-
-import Data.Time
 
 import Database.SQLite.Simple (
     ResultError (ConversionFailed),
@@ -31,6 +28,3 @@ instance (Num a, Typeable a) => FromField (AbsoluteValue a) where
         case fieldData f of
             (SQLInteger i) -> Ok . absoluteValue . fromIntegral $ i
             _ -> returnError ConversionFailed f "need a int"
-
-today :: IO Day
-today = utctDay <$> getCurrentTime

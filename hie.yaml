@@ -36,6 +36,15 @@ cradle:
     - path: "app/Utils/Database.hs"
       component: "expense-tracker:exe:dee-book"
 
+    - path: "app/Utils/Time.hs"
+      component: "expense-tracker:exe:dee-book"
+
+    - path: "app/Utils/Maybe.hs"
+      component: "expense-tracker:exe:dee-book"
+
+    - path: "app/Utils.hs"
+      component: "expense-tracker:exe:dee-book"
+
     - path: "app/Paths_expense_tracker.hs"
       component: "expense-tracker:exe:dee-book"
 
