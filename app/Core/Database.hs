@@ -138,6 +138,7 @@ saveTransaction number journalId amount conn = do
         liftIO $
             runMaybeT $
                 transactionTypeId (fst transactionTuple) conn
+    (periodId, _) <- liftIO $ currentPeriod conn
     liftIO $
         execute
             conn
@@ -146,13 +147,24 @@ saveTransaction number journalId amount conn = do
             , journalId
             , typeId
             , snd transactionTuple
+            , periodId
             )
   where
     transactionTuple = (\(TransactionAmount t a) -> (t, a)) amount
     q =
         "insert into transactions\
-        \ (account_id, journal_id, type_id, amount)\
-        \ values (?, ?, ?, ?)"
+        \ (account_id, journal_id, type_id, amount, period_id)\
+        \ values (?, ?, ?, ?, ?)"
+
+currentPeriod :: (MonadIO m, MonadFail m) => Connection -> m (Int, String)
+currentPeriod conn = do
+    results <- liftIO (query_ conn q :: IO [(Int, String)])
+    case results of
+        [] -> fail "no period exists"
+        [x] -> return x
+        _ -> error "A query returned more than one result"
+  where
+    q = "SELECT id, name FROM accounting_periods WHERE id=(SELECT MAX(id) FROM accounting_periods)"
 
 saveJournal ::
     (MonadError AccountError m, MonadIO m) =>
@@ -173,8 +185,9 @@ allTransactions :: (FromField a) => Connection -> IO [TransactionAmount a]
 allTransactions conn = query_ conn q
   where
     q =
-        "select ty.name, t.amount from transactions t \
-        \inner join transactiontypes ty on t.type_id=ty.id"
+        "select ty.name, t.amount FROM transactions t \
+        \INNER JOIN transactiontypes ty ON t.type_id=ty.id \
+        \WHERE t.period_id=(SELECT MAX(id) FROM accounting_periods)"
 
 allAccountTransactions ::
     (FromField a) =>
@@ -186,11 +199,12 @@ allAccountTransactions acc@Account {..} conn =
         <$> query conn q (Only number)
   where
     q =
-        "select j.date, j.note, ty.name, t.amount \
-        \from transactions t \
-        \inner join transactiontypes ty on t.type_id=ty.id \
-        \inner join journals j on t.journal_id=j.id \
-        \where account_id=? order by j.date"
+        "SELECT j.date, j.note, ty.name, t.amount \
+        \FROM transactions t \
+        \INNER JOIN transactiontypes ty ON t.type_id=ty.id \
+        \INNER JOIN journals j ON t.journal_id=j.id \
+        \WHERE account_id=? AND t.period_id=(SELECT MAX(id) FROM accounting_periods)\
+        \ORDER BY j.date"
 
 checkAccount ::
     (MonadError AccountError m, MonadIO m) =>
@@ -250,13 +264,7 @@ findLedger number conn =
  This selects the last period in the database table
 -}
 currentAccountingPeriod :: (MonadFail m, MonadIO m) => Connection -> m String
-currentAccountingPeriod conn = do
-    res <- liftIO $ query_ conn q
-    case res of
-        (x : _) -> return . fromOnly $ x
-        _ -> fail "no record found"
-  where
-    q = "select name from accounting_periods where id=(SELECT MAX(id) from accounting_periods)"
+currentAccountingPeriod conn = snd <$> currentPeriod conn
 
 -- | Find the id of an account element in the database
 elementId ::
