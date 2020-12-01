@@ -23,7 +23,7 @@ module Core.Database (
 import Data.Maybe (fromMaybe, isJust)
 import Data.Time (Day)
 
-import Control.Monad (forM_, when)
+import Control.Monad (forM, forM_, when)
 import Control.Monad.Except (
     MonadError (throwError),
     MonadIO (liftIO),
@@ -59,6 +59,7 @@ import qualified Data.Text as Text
 import Core.Error
 import Expense.Account
 import Expense.Transaction
+import Utils.Time
 
 instance ToField AccountNumber where
     toField = toField . unAccountNumber
@@ -165,6 +166,50 @@ currentPeriod conn = do
         _ -> error "A query returned more than one result"
   where
     q = "SELECT id, name FROM accounting_periods WHERE id=(SELECT MAX(id) FROM accounting_periods)"
+
+-- | Get the total balance for an account and return the closing transaction
+closingStatement :: (MonadIO m) => Connection -> Account -> m (JournalEntry Int)
+closingStatement conn acc = do
+    ledger <- liftIO (allAccountTransactions acc conn :: IO (Ledger Int))
+    return . JournalEntry acc . inverse . accountBalance $ ledger
+  where
+    inverse (TransactionAmount t a) =
+        case t of
+            Debit -> credit a
+            Credit -> debit a
+
+{- | Iterate through all accounts and get their closing statment
+ and return an aggregated Journal for all statements
+-}
+closeAllAccounts :: (MonadIO m) => Connection -> m (Journal Int)
+closeAllAccounts conn = do
+    now <- liftIO today
+    accs <- liftIO $ allAccounts conn
+    entries <- forM accs $ closingStatement conn
+    return $ Journal (Details now (Just "Closing Statement")) entries
+
+-- | Retrieve the journal for closing an accounting period and save it
+closePeriod :: (MonadIO m, MonadError AccountError m) => Connection -> m Int
+closePeriod conn = liftIO (closeAllAccounts conn) >>= flip saveJournal conn
+
+newPeriod :: (MonadIO m, MonadError AccountError m) => Connection -> String -> m ()
+newPeriod conn periodName = do
+    accs <- liftIO $ allAccounts conn
+    entries <- forM accs $ \x -> do
+        ledger <- liftIO (allAccountTransactions x conn :: IO (Ledger Int))
+        return . JournalEntry x . accountBalance $ ledger
+    _ <- closePeriod conn
+    periodId <- liftIO $ savePeriod conn periodName
+    now <- liftIO today
+    _ <- saveJournal (Journal (Details now (Just "Opening Statement")) entries) conn
+    return ()
+
+savePeriod :: (MonadIO m) => Connection -> String -> m Int
+savePeriod conn p =
+    fromIntegral
+        <$> (liftIO (execute conn q (Only p)) >> liftIO (lastInsertRowId conn))
+  where
+    q = "INSERT INTO accounting_periods (name) (?)"
 
 saveJournal ::
     (MonadError AccountError m, MonadIO m) =>
