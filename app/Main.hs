@@ -18,6 +18,7 @@ import Control.Monad.Except (
     MonadIO (liftIO),
     liftEither,
     runExceptT,
+    throwError,
  )
 import Control.Monad.Reader (
     ReaderT (runReaderT),
@@ -65,6 +66,7 @@ dispatcher (ShowAccount n) = showTransactions n
 dispatcher UpdateDatabase = updateDb
 dispatcher CheckHealth = runTasks checkHealth
 dispatcher AccountingPeriod = showAccountingPeriod
+dispatcher (NewAccountingPeriod s) = newAccountingPeriod s
 
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
@@ -74,6 +76,19 @@ readEnvironment = do
             { connectionString = fromMaybe "db.sqlite3" dbConnection
             , command = optCommand
             }
+
+newAccountingPeriod :: String -> App ()
+newAccountingPeriod str
+    | all isSpace str = throwError $ MiscError "no printable characters in string"
+newAccountingPeriod str = do
+    now <- liftIO today
+    withDatabase $
+        \conn ->
+            newPeriod
+                conn
+                (Details now (Just "Closing Statement"))
+                (Details now (Just "Opening Statement"))
+                (Text.unpack . Text.strip . Text.pack $ str)
 
 updateDb :: App ()
 updateDb = do

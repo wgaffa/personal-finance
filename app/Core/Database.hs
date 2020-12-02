@@ -196,15 +196,24 @@ closeAllAccounts conn details = do
 closePeriod :: (MonadIO m, MonadError AccountError m) => Connection -> Details -> m Int
 closePeriod conn details = liftIO (closeAllAccounts conn details) >>= flip saveJournal conn
 
-newPeriod :: (MonadIO m, MonadError AccountError m) => Connection -> Details -> String -> m ()
-newPeriod conn details periodName = do
+newPeriod ::
+    (MonadIO m, MonadError AccountError m) =>
+    Connection ->
+    -- | Closing details
+    Details ->
+    -- | Opening details
+    Details ->
+    -- | Name of new accounting period
+    String ->
+    m ()
+newPeriod conn closeDetails openDetails periodName = do
     accs <- liftIO $ allAccounts conn
     entries <- forM accs $ \x -> do
         ledger <- liftIO (allAccountTransactions x conn :: IO (Ledger Int))
         return . JournalEntry x . accountBalance $ ledger
-    _ <- closePeriod conn details
+    _ <- closePeriod conn closeDetails
     _ <- liftIO $ savePeriod conn periodName
-    _ <- saveJournal (Journal details entries) conn
+    _ <- saveJournal (Journal openDetails entries) conn
     return ()
 
 savePeriod :: (MonadIO m) => Connection -> String -> m Int

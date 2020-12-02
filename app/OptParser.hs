@@ -60,6 +60,7 @@ data Command
     | UpdateDatabase
     | CheckHealth
     | AccountingPeriod
+    | NewAccountingPeriod String
 
 connectionOpt :: Parser (Maybe String)
 connectionOpt =
@@ -78,6 +79,7 @@ commands =
             <> updateCommand
             <> checkHealthCommand
             <> showAccountingPeriod
+            <> newAccountingPeriod
         )
   where
     listCommand =
@@ -119,6 +121,13 @@ commands =
             ( info
                 (pure AccountingPeriod)
                 (progDesc "Show the current accounting period")
+            )
+    newAccountingPeriod =
+        command
+            "new-period"
+            ( info
+                (NewAccountingPeriod <$> argument auto (metavar "NAME"))
+                (progDesc "Close current accounting period and open a new one")
             )
 
 showOptions :: Parser ShowOptions
