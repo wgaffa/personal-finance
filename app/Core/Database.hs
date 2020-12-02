@@ -18,6 +18,7 @@ module Core.Database (
     latestSchemaVersion,
     foreignKeysViolations,
     enableForeignKeys,
+    newPeriod,
 ) where
 
 import Data.Maybe (fromMaybe, isJust)
@@ -59,7 +60,6 @@ import qualified Data.Text as Text
 import Core.Error
 import Expense.Account
 import Expense.Transaction
-import Utils.Time
 
 instance ToField AccountNumber where
     toField = toField . unAccountNumber
@@ -126,6 +126,11 @@ saveAccount acc@Account {..} conn =
         >> liftIO (insertAccount acc conn)
         >> return acc
 
+{- | Save a transaction to a journal id.
+ This uses the last saved accounting period in the database
+ to determine the accounting period.
+ Consider maybe have the option to pass in the accounting period
+-}
 saveTransaction ::
     (MonadError AccountError m, MonadIO m) =>
     AccountNumber ->
@@ -181,27 +186,25 @@ closingStatement conn acc = do
 {- | Iterate through all accounts and get their closing statment
  and return an aggregated Journal for all statements
 -}
-closeAllAccounts :: (MonadIO m) => Connection -> m (Journal Int)
-closeAllAccounts conn = do
-    now <- liftIO today
+closeAllAccounts :: (MonadIO m) => Connection -> Details -> m (Journal Int)
+closeAllAccounts conn details = do
     accs <- liftIO $ allAccounts conn
     entries <- forM accs $ closingStatement conn
-    return $ Journal (Details now (Just "Closing Statement")) entries
+    return $ Journal details entries
 
 -- | Retrieve the journal for closing an accounting period and save it
-closePeriod :: (MonadIO m, MonadError AccountError m) => Connection -> m Int
-closePeriod conn = liftIO (closeAllAccounts conn) >>= flip saveJournal conn
+closePeriod :: (MonadIO m, MonadError AccountError m) => Connection -> Details -> m Int
+closePeriod conn details = liftIO (closeAllAccounts conn details) >>= flip saveJournal conn
 
-newPeriod :: (MonadIO m, MonadError AccountError m) => Connection -> String -> m ()
-newPeriod conn periodName = do
+newPeriod :: (MonadIO m, MonadError AccountError m) => Connection -> Details -> String -> m ()
+newPeriod conn details periodName = do
     accs <- liftIO $ allAccounts conn
     entries <- forM accs $ \x -> do
         ledger <- liftIO (allAccountTransactions x conn :: IO (Ledger Int))
         return . JournalEntry x . accountBalance $ ledger
-    _ <- closePeriod conn
-    periodId <- liftIO $ savePeriod conn periodName
-    now <- liftIO today
-    _ <- saveJournal (Journal (Details now (Just "Opening Statement")) entries) conn
+    _ <- closePeriod conn details
+    _ <- liftIO $ savePeriod conn periodName
+    _ <- saveJournal (Journal details entries) conn
     return ()
 
 savePeriod :: (MonadIO m) => Connection -> String -> m Int
