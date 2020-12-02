@@ -8,12 +8,11 @@ module Main where
 import System.IO ()
 
 import Data.Char (isSpace)
-import Data.Either (isLeft)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
-import Control.Monad (forM, forM_, when)
+import Control.Monad (forM)
 import Control.Monad.Except (
     MonadError (),
     MonadIO (liftIO),
@@ -131,7 +130,7 @@ addTransaction = do
     date <- promptDate "Date: " now
     desc <- promptExcept "Note: " $ pure . emptyString
     journal <- transactionInteractive $ Journal (Details date desc) []
-    journalId <-
+    _ <-
         withDatabase $
             liftIO . \conn -> do
                 withTransaction conn $ do
@@ -139,24 +138,7 @@ addTransaction = do
                     case res of
                         (Right i) -> pure i
                         (Left _) -> error "Unexpected error when writing journal"
-    withDatabase $
-        liftIO . \conn -> do
-            withTransaction conn $ do
-                forM_ (entries journal) $ \acc -> do
-                    res <-
-                        runExceptT $
-                            saveTransaction
-                                (number . account $ acc)
-                                journalId
-                                (amount acc)
-                                conn
-                    when (isLeft res) $
-                        error "Unexpected error when saving transaction"
     return ()
-  where
-    entries (Journal _ xs) = xs
-    account (JournalEntry x _) = x
-    amount (JournalEntry _ x) = x
 
 createAccountInteractive ::
     (MonadError AccountError m, MonadIO m) =>

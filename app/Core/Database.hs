@@ -219,13 +219,20 @@ saveJournal ::
     Journal Int ->
     Connection ->
     m Int
-saveJournal (Journal details _) conn =
-    fromIntegral
-        <$> ( liftIO (execute conn q (date details, description details))
-                >> liftIO (lastInsertRowId conn)
-            )
+saveJournal (Journal details entries) conn = do
+    journalId <- insertJournal
+    forM_ entries (`insertEntry` journalId)
+    return journalId
   where
-    q =
+    insertJournal =
+        fromIntegral
+            <$> ( liftIO (execute conn qJournal (date details, description details))
+                    >> liftIO (lastInsertRowId conn)
+                )
+
+    insertEntry (JournalEntry acc amount) journalId = saveTransaction (number acc) journalId amount conn
+
+    qJournal =
         "insert into journals \
         \(date, note) values (?, ?)"
 
