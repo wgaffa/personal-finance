@@ -26,6 +26,7 @@ import Options.Applicative (
     long,
     metavar,
     progDesc,
+    str,
     strOption,
     switch,
  )
@@ -126,7 +127,7 @@ commands =
         command
             "new-period"
             ( info
-                (NewAccountingPeriod <$> argument auto (metavar "NAME"))
+                (NewAccountingPeriod <$> argument str (metavar "NAME"))
                 (progDesc "Close current accounting period and open a new one")
             )
 

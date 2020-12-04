@@ -221,7 +221,7 @@ savePeriod conn p =
     fromIntegral
         <$> (liftIO (execute conn q (Only p)) >> liftIO (lastInsertRowId conn))
   where
-    q = "INSERT INTO accounting_periods (name) (?)"
+    q = "INSERT INTO accounting_periods (name) values (?)"
 
 saveJournal ::
     (MonadError AccountError m, MonadIO m) =>
