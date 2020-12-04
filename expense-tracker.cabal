@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a8d64837e3757dab33c71e9bc81a86245c60aaba5efd511972100c7e80f24bf9
+-- hash: cfc93b14a3d547a5d21ef5577f024aad149c030f2e41b4e4fbddfc29d485e5da
 
 name:           expense-tracker
-version:        0.2.0.0
+version:        0.3.0.0
 description:    Please see the README on GitHub at <https://github.com/githubuser/expense-tracker#readme>
 homepage:       https://github.com/wgaffa/expense-tracker#readme
 bug-reports:    https://github.com/wgaffa/expense-tracker/issues
