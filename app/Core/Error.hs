@@ -1,6 +1,6 @@
-module Core.Error
-    ( AccountError(..)
-    ) where
+module Core.Error (
+    AccountError (..),
+) where
 
 data AccountError
     = InvalidName

@@ -1,62 +1,87 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_HADDOCK prune #-}
 
-module OptParser
-    ( Options(..)
-    , Command(..)
-    , ShowOptions(..)
-    , execArgParser
-    ) where
+module OptParser (
+    Options (..),
+    Command (..),
+    ShowOptions (..),
+    execArgParser,
+) where
 
-import Control.Applicative ( optional )
+import Control.Applicative (optional)
 
-import Options.Applicative
-    ( optional,
-      argument,
-      auto,
-      command,
-      fullDesc,
-      header,
-      help,
-      info,
-      infoOption,
-      long,
-      metavar,
-      progDesc,
-      strOption,
-      execParser,
-      helper,
-      hsubparser,
-      Parser )
-import Data.Semigroup ((<>))
+import Options.Applicative (
+    Parser,
+    argument,
+    auto,
+    command,
+    execParser,
+    fullDesc,
+    header,
+    help,
+    helper,
+    hsubparser,
+    info,
+    infoOption,
+    long,
+    metavar,
+    progDesc,
+    str,
+    strOption,
+    switch,
+ )
 
-import Development.GitRev (gitHash)
 import Data.Version (showVersion)
+import Development.GitRev (gitHash)
 import Paths_expense_tracker (version)
 
+-- | The commandline arguments for the application
 data Options = Options
-    { dbConnection :: Maybe String
-    , optCommand :: Command
+    { -- |The file or connection to use for the database
+      dbConnection :: Maybe String
+    , -- |The command we wish to run
+      optCommand :: Command
     }
 
-newtype ShowOptions = ShowOptions { filterAccount :: Int }
+-- | Type that holds the arguments of the command /show/
+data ShowOptions = ShowOptions
+    { -- |The account number to show
+      filterAccount :: Int
+    , showId :: Bool
+    }
 
+{- | Different commands that can be passed to the application and
+ their arguments if used
+-}
 data Command
     = List
     | CreateAccount
     | AddTransaction
     | ShowAccount ShowOptions
     | UpdateDatabase
+    | CheckHealth
+    | AccountingPeriod
+    | NewAccountingPeriod String
 
 connectionOpt :: Parser (Maybe String)
-connectionOpt = optional $ strOption (
-    long "db-connection"
-    <> help "Connection information to the database")
+connectionOpt =
+    optional $
+        strOption
+            ( long "db-connection"
+                <> help "Connection information to the database"
+            )
 
 commands :: Parser Command
-commands = hsubparser
-    (  listCommand <> createCommand
-        <> transactionCommand <> showCommand
-        <> updateCommand )
+commands =
+    hsubparser
+        ( listCommand <> createCommand
+            <> transactionCommand
+            <> showCommand
+            <> updateCommand
+            <> checkHealthCommand
+            <> showAccountingPeriod
+            <> newAccountingPeriod
+        )
   where
     listCommand =
         command
@@ -73,35 +98,64 @@ commands = hsubparser
     showCommand =
         command
             "show"
-            (info
+            ( info
                 (ShowAccount <$> showOptions)
                 (progDesc "Show transaction for an account")
             )
     updateCommand =
         command
             "update-db"
-            (info
+            ( info
                 (pure UpdateDatabase)
-                (progDesc "Update the database to latest version"))
+                (progDesc "Update the database to latest version")
+            )
+    checkHealthCommand =
+        command
+            "checkhealth"
+            ( info
+                (pure CheckHealth)
+                (progDesc "Check the health of the application and database")
+            )
+    showAccountingPeriod =
+        command
+            "period"
+            ( info
+                (pure AccountingPeriod)
+                (progDesc "Show the current accounting period")
+            )
+    newAccountingPeriod =
+        command
+            "new-period"
+            ( info
+                (NewAccountingPeriod <$> argument str (metavar "NAME"))
+                (progDesc "Close current accounting period and open a new one")
+            )
 
 showOptions :: Parser ShowOptions
 showOptions =
     ShowOptions
-    <$> argument auto (metavar "ACCOUNTID")
+        <$> argument auto (metavar "ACCOUNTID")
+        <*> switch
+            (long "show-uuid" <> help "Show UUID")
 
 options :: Parser Options
 options =
     Options
-    <$> connectionOpt
-    <*> commands
+        <$> connectionOpt
+        <*> commands
 
+-- | Runs the parser and returns an 'Options' type
 execArgParser :: IO Options
 execArgParser = execParser opts
   where
-    opts = info (helper <*> versionInfo <*> options)
-        ( fullDesc
-        <> progDesc "Use double bookkeeping to handle your finances"
-        <> header "Personal Finance Tracker")
-    versionInfo = infoOption
-        (showVersion version <> " " <> $(gitHash))
-        (long "version" <> help "Show version")
+    opts =
+        info
+            (helper <*> versionInfo <*> options)
+            ( fullDesc
+                <> progDesc "Use double bookkeeping to handle your finances"
+                <> header "Personal Finance Tracker"
+            )
+    versionInfo =
+        infoOption
+            (showVersion version <> " " <> $(gitHash))
+            (long "version" <> help "Show version")

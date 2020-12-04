@@ -1,71 +1,60 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# OPTIONS_HADDOCK hide, prune #-}
 
 module Main where
 
 import System.IO ()
 
+import Data.Char (isSpace)
 import Data.Maybe (fromMaybe)
-import Data.Char ( isSpace )
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
-import Data.Time (Day)
-import Data.Either (isLeft)
 
-import Control.Monad (when, forM_)
-import Control.Monad.Catch ( bracket, finally )
-import Control.Monad.Except
-    ( MonadTrans(lift),
-      MonadIO(liftIO),
-      ExceptT,
-      liftEither,
-      runExceptT )
-import Control.Monad.Trans.Maybe ( MaybeT(runMaybeT) )
-import Control.Monad.Trans.State (execStateT, execState, put, modify, StateT, get)
-import Control.Monad.Reader
-    ( MonadTrans(lift),
-      MonadIO(liftIO),
-      ReaderT(runReaderT),
-      MonadReader(ask) )
-import Control.Monad.IO.Class ( MonadIO(liftIO) )
+import Control.Monad (forM)
+import Control.Monad.Except (
+    MonadError (),
+    MonadIO (liftIO),
+    liftEither,
+    runExceptT,
+    throwError,
+ )
+import Control.Monad.Reader (
+    ReaderT (runReaderT),
+ )
+import Control.Monad.Trans.Maybe (MaybeT (runMaybeT))
 
-import Database.SQLite.Simple (withTransaction,  close, open, Connection )
-import Database.SQLite.Simple.FromField ( FromField )
+import Database.SQLite.Simple (
+    Connection,
+    withTransaction,
+ )
 
-import OptParser
+import Command.CheckHealth
 import Core.Database
 import Core.PrettyPrint
+import OptParser
 
-import Expense.Transaction
 import Expense.Account
+import Expense.Transaction
 
-import Core.Utils
-import Core.Prompt
+import Core.App
 import Core.Error
-import Utility.Absolute
-
-data AppEnvironment = AppEnvironment
-    { connectionString :: String
-    , command :: Command
-    }
-
-newtype App a = App {
-    runApp :: ReaderT AppEnvironment (ExceptT AccountError IO) a
-    }
-    deriving (Functor, Applicative, Monad, MonadIO)
-    deriving newtype (MonadReader AppEnvironment)
+import Core.Prompt
+import Utils
 
 main :: IO ()
-main = readEnvironment
-    >>= \ env -> (runExceptT
-        . flip runReaderT env
-        . runApp
-        . dispatcher
-        . command $ env)
-    >>= either perror return
+main =
+    readEnvironment
+        >>= \env ->
+            ( runExceptT
+                . flip runReaderT env
+                . runApp
+                . dispatcher
+                . command
+                $ env
+            )
+                >>= either perror return
   where
     perror x = putStrLn $ "Error: " ++ show x
 
@@ -75,162 +64,167 @@ dispatcher CreateAccount = createAccount
 dispatcher AddTransaction = addTransaction
 dispatcher (ShowAccount n) = showTransactions n
 dispatcher UpdateDatabase = updateDb
+dispatcher CheckHealth = runTasks checkHealth
+dispatcher AccountingPeriod = showAccountingPeriod
+dispatcher (NewAccountingPeriod s) = newAccountingPeriod s
 
 readEnvironment :: IO AppEnvironment
 readEnvironment = do
     Options {..} <- execArgParser
-    return AppEnvironment {
-        connectionString = fromMaybe "db.sqlite3" dbConnection
-        , command = optCommand
-        }
+    return
+        AppEnvironment
+            { connectionString = fromMaybe "db.sqlite3" dbConnection
+            , command = optCommand
+            }
+
+newAccountingPeriod :: String -> App ()
+newAccountingPeriod str
+    | all isSpace str = throwError $ MiscError "no printable characters in string"
+newAccountingPeriod str = do
+    now <- liftIO today
+    withDatabase $
+        \conn ->
+            newPeriod
+                conn
+                (Details now (Just "Closing Statement"))
+                (Details now (Just "Opening Statement"))
+                (Text.unpack . Text.strip . Text.pack $ str)
 
 updateDb :: App ()
 updateDb = do
-    cfg <- ask
-    liftIO $ bracket
-        (open $ connectionString cfg)
-        close
-        updateDatabase
+    withDatabase $ liftIO . updateDatabase
     liftIO $ putStrLn "Database updated"
+
+showAccountingPeriod :: App ()
+showAccountingPeriod = do
+    period <- withDatabase currentAccountingPeriod
+    liftIO $ putStrLn period
 
 showAccounts :: App ()
 showAccounts = do
-    cfg <- ask
-    conn <- liftIO . open $ connectionString cfg
-    accounts <- liftIO $ allAccounts conn
-    liftIO $ printListAccounts accounts
+    withDatabase $
+        liftIO . \conn -> do
+            accounts <- allAccounts conn
+            ledgers <-
+                forM
+                    accounts
+                    (\Account {..} -> findLedger number conn) ::
+                    IO [Ledger Int]
+            let triage = map (\l@(Ledger a _) -> (a, value . accountBalance $ l)) ledgers
+             in putStr $ renderTriageBalance triage
+  where
+    value (TransactionAmount _ a) = a
 
 showTransactions :: ShowOptions -> App ()
-showTransactions ShowOptions{..} =
-    (fmap unAbsoluteValue
-        <$> ((App . liftEither
-                . maybeToEither InvalidNumber
-                . accountNumber $ filterAccount)
-            >>= findLedger))
-    >>= liftIO . printLedger
+showTransactions ShowOptions {..} =
+    ( ( liftEither
+            . maybeToEither InvalidNumber
+            . accountNumber
+            $ filterAccount
+      )
+        >>= ( \number ->
+                withDatabase (liftIO . findLedger number)
+            ) ::
+        App (Ledger Int)
+    )
+        >>= liftIO . putStrLn . renderLedger
 
 createAccount :: App ()
 createAccount = do
-    acc <- App $ lift $ createAccountInteractive
+    acc <- createAccountInteractive
     liftIO $ putStrLn "Attempting to save account"
-    cfg <- ask
-    conn <- liftIO . open $ connectionString cfg
-    res <- App $ lift $ finally (saveAccount acc conn) (liftIO $ close conn)
-    liftIO $ putStr "Saved account: "
+    res <- withDatabase (saveAccount acc)
+    liftIO $
+        putStr "Saved account: "
             >> printAccount res
             >> putChar '\n'
 
 addTransaction :: App ()
 addTransaction = do
-    cfg <- ask
-    now <- liftIO $ today
-    date <- App $ lift $ promptDate "Date: " now
-    ts <- transactionInteractive date []
-    App $ bracket
-        (liftIO . open $ connectionString cfg)
-        (liftIO . close)
-        (liftIO . \ conn -> do
-            withTransaction conn $ do
-                forM_ ts $ \ acc -> do
-                    res <- runExceptT $ saveTransaction
-                        (fst acc)
-                        (unAbsoluteValue <$> snd acc)
-                         conn
-                    when (isLeft res) $
-                        error "Unexpected error when saving transaction"
-        )
+    now <- liftIO today
+    date <- promptDate "Date: " now
+    desc <- promptExcept "Note: " $ pure . emptyString
+    journal <- transactionInteractive $ Journal (Details date desc) []
+    _ <-
+        withDatabase $
+            liftIO . \conn -> do
+                withTransaction conn $ do
+                    res <- runExceptT $ saveJournal journal conn
+                    case res of
+                        (Right i) -> pure i
+                        (Left _) -> error "Unexpected error when writing journal"
     return ()
 
-findLedger :: (FromField a) => AccountNumber -> App (Ledger a)
-findLedger number = do
-    cfg <- ask
-    ledger <- liftIO $ bracket
-        (open $ connectionString cfg)
-        close
-        (\conn -> do
-            account <- runMaybeT $ findAccount number conn
-            case account of
-                Just x ->
-                    Right . Ledger x
-                    <$> allAccountTransactions x conn
-                Nothing -> pure . Left $ AccountNotFound
-        )
-    App $ liftEither ledger
+createAccountInteractive ::
+    (MonadError AccountError m, MonadIO m) =>
+    m Account
+createAccountInteractive =
+    Account
+        <$> promptExcept
+            "Number: "
+            (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
+        <*> promptExcept
+            "Name: "
+            (maybeToEither InvalidName . accountName . Text.pack)
+        <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
 
-createAccountInteractive :: ExceptT AccountError IO Account
-createAccountInteractive = Account
-    <$> promptExcept "Number: "
-        (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
-    <*> promptExcept "Name: "
-        (maybeToEither InvalidName . accountName . Text.pack)
-    <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
-
-findAccountInteractive :: Connection -> ExceptT AccountError IO Account
+findAccountInteractive ::
+    (MonadError AccountError m, MonadIO m) =>
+    Connection ->
+    m Account
 findAccountInteractive conn =
-    promptExcept "Account number: "
+    promptExcept
+        "Account number: "
         (maybeToEither InvalidNumber . (=<<) accountNumber . readMaybe)
-    >>= liftIO . runMaybeT . flip findAccount conn
-    >>= liftEither . maybeToEither AccountNotFound
-
-createTransactionInteractive ::
-    (Accountable a) =>
-    a
-    -> ExceptT AccountError IO (AccountTransaction (AbsoluteValue Int))
-createTransactionInteractive x =
-    AccountTransaction
-    <$> promptExcept "Date: "
-        (maybeToEither ParseError . readMaybe)
-    <*> promptExcept "Description: "
-        (pure . emptyString)
-    <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
-        <$> createTransactionAmountInteractive x)
-  where
-    emptyString xs
-        | all isSpace xs = Nothing
-        | otherwise = Just xs
+        >>= liftIO . runMaybeT . flip findAccount conn
+        >>= liftEither . maybeToEither AccountNotFound
 
 createTransactionAmountInteractive ::
-    (Accountable a)
-    => a
-    -> ExceptT AccountError IO (TransactionAmount (AbsoluteValue Double))
+    (Accountable a, MonadError AccountError m, MonadIO m) =>
+    a ->
+    m (TransactionAmount Double)
 createTransactionAmountInteractive x =
     createAccountTransactionAmount x
-    <$> promptExcept "Amount: " (maybeToEither InvalidNumber . readMaybe)
+        <$> promptExcept "Amount: " (maybeToEither InvalidNumber . readMaybe)
 
+-- | Take an 'Accountable' a and increase or decrease it based on b
 createAccountTransactionAmount ::
-    (Accountable a, Num b, Eq b)
-    => a -> b -> TransactionAmount (AbsoluteValue b)
+    (Accountable a, Num b, Eq b) =>
+    a ->
+    b ->
+    TransactionAmount b
 createAccountTransactionAmount x m
-    | signum m == -1 = decrease x . absoluteValue $ m
-    | otherwise = increase x . absoluteValue $ m
+    | signum m == -1 = decrease x . abs $ m
+    | otherwise = increase x . abs $ m
 
 transactionInteractive ::
-    Day
-    -> [(Account, AccountTransaction (AbsoluteValue Int))]
-    -> App [(Account, AccountTransaction (AbsoluteValue Int))]
-transactionInteractive date accu =
-    ask
-    >>= (\ env -> App $ bracket
-        (liftIO . open $ connectionString env)
-        (liftIO . close)
-        (lift . findAccountInteractive)
-    )
-    >>= (\ account -> (App . lift $ AccountTransaction date
-        <$> promptExcept "Note: " (pure . emptyString)
-        <*> (fmap (absoluteValue . truncate . (*100) . unAbsoluteValue)
-            <$> createTransactionAmountInteractive account))
-        >>= \ x -> pure $ (account, x):accu
-        )
-    >>= (\ entries ->
-        (liftIO $ printJournal date
-            $ map (\ (x, y) -> (x, fmap unAbsoluteValue y)) entries)
-        >> (pure . balance . map (fmap unAbsoluteValue . amount . snd) $ entries)
-        >>= (\ currentBalance ->
-                if currentBalance == 0
-                    then pure entries
-                    else transactionInteractive date entries)
-        )
+    Journal Int ->
+    App (Journal Int)
+transactionInteractive journal@(Journal details _) =
+    findAccountInDatabase >>= readAccount >>= readEntries
   where
-    emptyString xs
-        | all isSpace xs = Nothing
-        | otherwise = Just xs
+    findAccountInDatabase =
+        withDatabase $ \conn -> do
+            acc <- findAccountInteractive conn
+            liftIO $ printAccount acc
+            return acc
+    readAccount account =
+        Journal details . (: entries journal) . JournalEntry account
+            <$> ( fmap (round . (* 100))
+                    <$> createTransactionAmountInteractive account
+                )
+    readEntries x =
+        (liftIO . putStrLn . renderJournal $ x)
+            >> (pure . balance . map amount $ entries x)
+            >>= ( \currentBalance ->
+                    if currentBalance == 0
+                        then pure x
+                        else transactionInteractive x
+                )
+    entries (Journal _ xs) = xs
+    amount (JournalEntry _ x) = x
+
+emptyString :: String -> Maybe String
+emptyString xs
+    | all isSpace xs = Nothing
+    | otherwise = Just xs

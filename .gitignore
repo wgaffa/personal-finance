@@ -6,3 +6,5 @@
 .ghci
 .ghcid
 report.html
+dist-newstyle/
+tags

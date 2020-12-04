@@ -3,12 +3,15 @@
 
 module Expense.Account
     ( Ledger(..)
+    , LedgerEntry(..)
     , Account(..)
     , AccountElement(..)
     , AccountName()
     , AccountNumber()
-    , AccountTransaction(..)
     , Accountable
+    , Details(..)
+    , Journal(..)
+    , JournalEntry(..)
     , accountBalance
     , accountName
     , accountNumber
@@ -19,11 +22,11 @@ module Expense.Account
     , ledgerTransaction
     , unAccountName
     , unAccountNumber
+    , toBalance
     ) where
 
 import Data.Char ( isSpace )
 import qualified Data.Text as Text
-
 import Data.Time (Day)
 
 import Expense.Transaction
@@ -33,11 +36,31 @@ import Expense.Transaction
       debit,
       toNumeral )
 
-data Ledger a = Ledger Account [AccountTransaction a]
-    deriving(Show)
+data Details = Details {
+    date :: Day,
+    description :: Maybe String
+    }
+
+-- | A journal is a daily entry and has all entries for a complete
+-- transaction. All entries should be balanced (debit and credit totals are equal)
+data Journal a = Journal Details [JournalEntry a]
+data JournalEntry a = JournalEntry Account (TransactionAmount a)
+
+instance Functor Journal where
+    fmap f (Journal d xs) = Journal d . map (fmap f) $ xs
+
+instance Functor JournalEntry where
+    fmap f (JournalEntry a x) = JournalEntry a . fmap f $ x
 
 instance Functor Ledger where
-    fmap f x@(Ledger a ts) = Ledger a $ map (fmap f) ts
+    fmap f (Ledger d xs) = Ledger d . map (fmap f) $ xs
+
+instance Functor LedgerEntry where
+    fmap f (LedgerEntry d x) = LedgerEntry d . fmap f $ x
+
+-- | A ledger holds an accounts transactions
+data Ledger a = Ledger Account [LedgerEntry a]
+data LedgerEntry a = LedgerEntry Details (TransactionAmount a)
 
 -- | All different account elements (types)
 data AccountElement = Asset | Liability | Equity | Income | Expenses
@@ -48,14 +71,15 @@ newtype AccountName = AccountName Text.Text
     deriving (Ord, Eq)
     deriving newtype (Show)
 
+-- | Unwrap the name from an `AccountName`
 unAccountName :: AccountName -> Text.Text
 unAccountName (AccountName n) = n
 
 -- | Smart constructor for 'AccountName'
 accountName :: Text.Text -> Maybe AccountName
-accountName name
-    | Text.all isSpace name = Nothing
-    | otherwise = Just $ AccountName name
+accountName n
+    | Text.all isSpace n = Nothing
+    | otherwise = Just $ AccountName n
 
 -- | An account number is any positive number
 newtype AccountNumber = AccountNumber Int
@@ -70,8 +94,8 @@ emptyAccountNumber = AccountNumber 0
 
 -- | Smart constructor for 'AccountNumber'
 accountNumber :: Int -> Maybe AccountNumber
-accountNumber number
-    | number > 0 = Just $ AccountNumber number
+accountNumber n
+    | n > 0 = Just $ AccountNumber n
     | otherwise = Nothing
 
 -- | Account structure
@@ -111,17 +135,7 @@ instance Accountable AccountElement where
         | x `elem` debitAccounts = Debit
         | otherwise = Credit
 
--- | Account specific transaction that goes in to a ledger
-data AccountTransaction a = AccountTransaction {
-    date :: Day -- ^ Date of the transaction
-    , description :: Maybe String -- ^ Description for the transaction
-    , amount :: TransactionAmount a -- ^ Amount debited or credited
-} deriving (Show)
-
-instance Functor AccountTransaction where
-    fmap f t = t{amount = fmap f (amount t)}
-
-ledgerTransaction :: AccountTransaction a -> Ledger a -> Ledger a
+ledgerTransaction :: LedgerEntry a -> Ledger a -> Ledger a
 ledgerTransaction transaction (Ledger account transactions) =
     Ledger account appendTransaction
   where
@@ -132,4 +146,5 @@ accountBalance (Ledger acc ts) =
     toBalance acc id
     . balance $ ts
   where
-    balance = foldr ((+) . toNumeral . amount) 0
+    balance = foldr ((+) . toNumeral . getAmount) 0
+    getAmount (LedgerEntry _ x) = x

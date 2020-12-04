@@ -1,31 +1,42 @@
-module Core.Prompt
-    ( prompt
-    , promptDate
-    , promptExcept
-    ) where
+{-# LANGUAGE FlexibleContexts #-}
+
+module Core.Prompt (
+    prompt,
+    promptDate,
+    promptExcept,
+) where
 
 import System.IO (hFlush, stdout)
 
 import Data.Char (isSpace)
-import Text.Read (readMaybe)
 import Data.Time (Day)
+import Text.Read (readMaybe)
 
 import Control.Monad.Except
 
 import Core.Error
-import Core.Utils
+import Utils.Maybe
 
-promptDate :: String -> Day -> ExceptT AccountError IO Day
+promptDate ::
+    (MonadError AccountError m, MonadIO m) =>
+    String ->
+    Day ->
+    m Day
 promptDate text date =
     (liftIO . prompt $ text)
-    >>= \ xs -> if (all isSpace xs)
+        >>= \xs ->
+            if all isSpace xs
                 then return date
-                else liftEither $ maybeToEither ParseError . readMaybe  $ xs
+                else liftEither $ maybeToEither ParseError . readMaybe $ xs
 
-promptExcept :: String -> (String -> Either e a) -> ExceptT e IO a
+promptExcept ::
+    (MonadError e m, MonadIO m) =>
+    String ->
+    (String -> Either e a) ->
+    m a
 promptExcept text f =
     (liftIO . prompt $ text)
-    >>= liftEither . f
+        >>= liftEither . f
 
 prompt :: String -> IO String
 prompt text = do
