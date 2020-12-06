@@ -27,6 +27,9 @@ dependencies:
 
 library:
   source-dirs: src
+  when:
+  - condition: false
+    other-modules: Paths_expense_tracker
 
 executables:
   dee-book:
@@ -60,3 +63,6 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - expense-tracker
+    when:
+    - condition: false
+      other-modules: Paths_expense_tracker
