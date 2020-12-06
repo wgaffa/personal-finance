@@ -27,6 +27,9 @@ cradle:
     - path: "app/Core/Utils.hs"
       component: "expense-tracker:exe:dee-book"
 
+    - path: "app/Core/Config.hs"
+      component: "expense-tracker:exe:dee-book"
+
     - path: "app/Data/Task.hs"
       component: "expense-tracker:exe:dee-book"
 

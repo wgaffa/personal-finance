@@ -24,7 +24,6 @@ dependencies:
 - text
 - containers
 - time
-- uuid
 
 library:
   source-dirs: src
@@ -42,13 +41,14 @@ executables:
     - expense-tracker
     - mtl
     - optparse-applicative
-    - repline
     - transformers
     - sqlite-simple
     - exceptions
     - boxes
     - gitrev
     - free
+    - filepath
+    - directory
 
 tests:
   expense-tracker-test:

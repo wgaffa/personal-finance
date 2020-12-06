@@ -5,6 +5,7 @@
 module Core.App (
     App (..),
     AppEnvironment (..),
+    appIdentifier,
 ) where
 
 import Control.Monad.Catch (
@@ -36,3 +37,6 @@ newtype App a = App
     deriving (Functor, Applicative, Monad, MonadIO)
     deriving newtype (MonadReader AppEnvironment, MonadError AccountError)
     deriving newtype (MonadThrow, MonadCatch, MonadMask, MonadFail)
+
+appIdentifier :: String
+appIdentifier = "dee-book"

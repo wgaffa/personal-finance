@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: cfc93b14a3d547a5d21ef5577f024aad149c030f2e41b4e4fbddfc29d485e5da
+-- hash: faa9fe8c08d6e7de7d2d0a0e32711205b7260aab332618db92ffbeedbf3ec3c2
 
 name:           expense-tracker
 version:        0.3.0.0
@@ -39,7 +39,6 @@ library
     , containers
     , text
     , time
-    , uuid
   default-language: Haskell2010
 
 executable dee-book
@@ -47,6 +46,7 @@ executable dee-book
   other-modules:
       Command.CheckHealth
       Core.App
+      Core.Config
       Core.Database
       Core.Error
       Core.PrettyPrint
@@ -65,18 +65,18 @@ executable dee-book
       base >=4.7 && <5
     , boxes
     , containers
+    , directory
     , exceptions
     , expense-tracker
+    , filepath
     , free
     , gitrev
     , mtl
     , optparse-applicative
-    , repline
     , sqlite-simple
     , text
     , time
     , transformers
-    , uuid
   default-language: Haskell2010
 
 test-suite expense-tracker-test
@@ -93,5 +93,4 @@ test-suite expense-tracker-test
     , expense-tracker
     , text
     , time
-    , uuid
   default-language: Haskell2010
