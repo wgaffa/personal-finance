@@ -1,5 +1,13 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RecordWildCards #-}
+
 module Core.Config (
     getConfigFile,
+    buildConfig,
 ) where
 
 import System.Directory (
@@ -12,10 +20,33 @@ import System.FilePath ((</>))
 
 import Data.Functor ((<&>))
 import Data.List
+import Data.Monoid
+
+import GHC.Generics (Generic)
+
+import Generics.Deriving.Monoid
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 
 import Core.App (appIdentifier)
+import Data.Maybe (fromMaybe)
+
+newtype Config select = Config
+    {database :: select Last FilePath}
+    deriving (Generic)
+
+newtype Build f a = Build {fromBuild :: f a}
+    deriving (Eq, Foldable, Functor, Semigroup, Monoid, Ord, Show, Traversable)
+
+newtype Run f a = Run {fromRun :: a}
+    deriving (Eq, Foldable, Functor, Semigroup, Monoid, Ord, Show, Traversable)
+
+instance Semigroup (Config Build) where
+    (<>) = mappend
+
+instance Monoid (Config Build) where
+    mempty = memptydefault
+    mappend = mappenddefault
 
 -- | Name of the applicaitons configuration file to use
 configFileName :: FilePath
@@ -47,3 +78,13 @@ getConfigFile = do
     case cfgFile of
         Nothing -> fail "no config file found"
         Just x -> return x
+
+infix 1 !<-
+(!<-) :: (f a -> b) -> Build f a -> Run f b
+(!<-) f = Run . f . fromBuild
+
+buildConfig :: Config Build -> Config Run
+buildConfig Config {..} =
+    Config
+        { database = fromMaybe "db.sqlite3" . getLast !<- database
+        }
