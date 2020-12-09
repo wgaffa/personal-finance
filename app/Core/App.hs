@@ -5,6 +5,8 @@
 module Core.App (
     App (..),
     AppEnvironment (..),
+    Command (..),
+    ShowOptions (..),
     appIdentifier,
 ) where
 
@@ -23,19 +25,34 @@ import Control.Monad.Reader (
     ReaderT,
  )
 
+import Core.Config (Config, Run)
 import Core.Error (AccountError)
-import OptParser (Command)
 
-data AppEnvironment = AppEnvironment
-    { connectionString :: String
-    , command :: Command
+{- | Different commands that can be passed to the application and
+ their arguments if used
+-}
+data Command
+    = List
+    | CreateAccount
+    | AddTransaction
+    | ShowAccount ShowOptions
+    | UpdateDatabase
+    | CheckHealth
+    | AccountingPeriod
+    | NewAccountingPeriod String
+
+-- | Type that holds the arguments of the command /show/
+data ShowOptions = ShowOptions
+    { -- |The account number to show
+      filterAccount :: Int
+    , showId :: Bool
     }
 
 newtype App a = App
-    { runApp :: ReaderT AppEnvironment (ExceptT AccountError IO) a
+    { runApp :: ReaderT (Config Run) (ExceptT AccountError IO) a
     }
     deriving (Functor, Applicative, Monad, MonadIO)
-    deriving newtype (MonadReader AppEnvironment, MonadError AccountError)
+    deriving newtype (MonadReader (Config Run), MonadError AccountError)
     deriving newtype (MonadThrow, MonadCatch, MonadMask, MonadFail)
 
 appIdentifier :: String

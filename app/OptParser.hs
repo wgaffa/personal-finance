@@ -6,6 +6,7 @@ module OptParser (
     Command (..),
     ShowOptions (..),
     execArgParser,
+    lastOpt,
 ) where
 
 import Control.Applicative (optional)
@@ -31,45 +32,28 @@ import Options.Applicative (
     switch,
  )
 
+import Data.Monoid (Last (Last))
 import Data.Version (showVersion)
+
 import Development.GitRev (gitHash)
 import Paths_expense_tracker (version)
 
+import Core.App (Command (..), ShowOptions (..))
+import Core.Config (Build (..), Config (..))
+
 -- | The commandline arguments for the application
 data Options = Options
-    { -- |The file or connection to use for the database
-      dbConnection :: Maybe String
+    { -- |Configuration for the application
+      config :: Config Build
     , -- |The command we wish to run
       optCommand :: Command
     }
 
--- | Type that holds the arguments of the command /show/
-data ShowOptions = ShowOptions
-    { -- |The account number to show
-      filterAccount :: Int
-    , showId :: Bool
-    }
+lastOpt :: Parser a -> Parser (Build Last a)
+lastOpt parser = Build . Last <$> optional parser
 
-{- | Different commands that can be passed to the application and
- their arguments if used
--}
-data Command
-    = List
-    | CreateAccount
-    | AddTransaction
-    | ShowAccount ShowOptions
-    | UpdateDatabase
-    | CheckHealth
-    | AccountingPeriod
-    | NewAccountingPeriod String
-
-connectionOpt :: Parser (Maybe String)
-connectionOpt =
-    optional $
-        strOption
-            ( long "db-connection"
-                <> help "Connection information to the database"
-            )
+configOpt :: Parser (Config Build)
+configOpt = Config <$> lastOpt (strOption (long "db-connection" <> help "Connection information to the database"))
 
 commands :: Parser Command
 commands =
@@ -141,7 +125,7 @@ showOptions =
 options :: Parser Options
 options =
     Options
-        <$> connectionOpt
+        <$> configOpt
         <*> commands
 
 -- | Runs the parser and returns an 'Options' type

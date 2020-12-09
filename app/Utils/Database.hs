@@ -25,6 +25,7 @@ import Database.SQLite.Simple.FromField (
 import Database.SQLite.Simple.Ok (Ok (Ok))
 
 import Core.App
+import Core.Config (Run (fromRun), database)
 import Core.Database (enableForeignKeys)
 import Utility.Absolute (AbsoluteValue, absoluteValue)
 
@@ -38,6 +39,6 @@ withDatabase :: (Connection -> App a) -> App a
 withDatabase f =
     ask >>= \cfg ->
         bracket
-            (liftIO . open $ connectionString cfg)
+            (liftIO . open $ fromRun . database $ cfg)
             (liftIO . close)
             (\conn -> liftIO (enableForeignKeys conn) >> f conn)

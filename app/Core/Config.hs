@@ -6,6 +6,9 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module Core.Config (
+    Config (..),
+    Build (..),
+    Run (..),
     getConfigFile,
     buildConfig,
 ) where
@@ -20,6 +23,7 @@ import System.FilePath ((</>))
 
 import Data.Functor ((<&>))
 import Data.List
+import Data.Maybe (fromMaybe)
 import Data.Monoid
 
 import GHC.Generics (Generic)
@@ -27,9 +31,6 @@ import GHC.Generics (Generic)
 import Generics.Deriving.Monoid
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-
-import Core.App (appIdentifier)
-import Data.Maybe (fromMaybe)
 
 newtype Config select = Config
     {database :: select Last FilePath}
@@ -48,31 +49,17 @@ instance Monoid (Config Build) where
     mempty = memptydefault
     mappend = mappenddefault
 
--- | Name of the applicaitons configuration file to use
-configFileName :: FilePath
-configFileName = "config.cfg"
-
-{- | The config dir to use for config files under a path
- Should be the applications name/identifier
--}
-configDir :: FilePath
-configDir = appIdentifier
-
 -- | Retrieve the path to the config directory
-homeConfigDir :: (MonadIO m) => m FilePath
-homeConfigDir = liftIO $ getXdgDirectory XdgConfig configDir
-
--- | Retrieve the path to the home config file
-homeConfig :: (MonadIO m, MonadFail m) => m FilePath
-homeConfig = homeConfigDir <&> (</> configFileName)
+homeConfigDir :: (MonadIO m) => FilePath -> m FilePath
+homeConfigDir configDir = liftIO $ getXdgDirectory XdgConfig configDir
 
 -- | The files to check for in reverse order
-checkConfigFiles :: IO [FilePath]
-checkConfigFiles = sequenceA [homeConfig, fmap (</> configFileName) getCurrentDirectory]
+checkConfigFiles :: FilePath -> FilePath -> IO [FilePath]
+checkConfigFiles baseDir configFile = sequenceA [(</> configFile) <$> homeConfigDir baseDir, fmap (</> configFile) getCurrentDirectory]
 
-getConfigFile :: (MonadIO m, MonadFail m) => m FilePath
-getConfigFile = do
-    cfgFiles <- liftIO checkConfigFiles
+getConfigFile :: (MonadIO m, MonadFail m) => FilePath -> FilePath -> m FilePath
+getConfigFile baseDir configFile = do
+    cfgFiles <- liftIO $ checkConfigFiles baseDir configFile
     res <- liftIO $ mapM doesFileExist cfgFiles
     let cfgFile = find snd (zip cfgFiles res) <&> fst
     case cfgFile of

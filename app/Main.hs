@@ -8,7 +8,6 @@ module Main where
 import System.IO ()
 
 import Data.Char (isSpace)
-import Data.Maybe (fromMaybe)
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
@@ -39,22 +38,21 @@ import Expense.Account
 import Expense.Transaction
 
 import Core.App
+import Core.Config (Build, Config, buildConfig)
 import Core.Error
 import Core.Prompt
 import Utils
 
 main :: IO ()
-main =
-    readEnvironment
-        >>= \env ->
-            ( runExceptT
-                . flip runReaderT env
-                . runApp
-                . dispatcher
-                . command
-                $ env
-            )
-                >>= either perror return
+main = do
+    (cfg, cmd) <- readCmdLine
+    res <-
+        runExceptT
+            . flip runReaderT (buildConfig cfg)
+            . runApp
+            . dispatcher
+            $ cmd
+    either perror return res
   where
     perror x = putStrLn $ "Error: " ++ show x
 
@@ -68,14 +66,10 @@ dispatcher CheckHealth = runTasks checkHealth
 dispatcher AccountingPeriod = showAccountingPeriod
 dispatcher (NewAccountingPeriod s) = newAccountingPeriod s
 
-readEnvironment :: IO AppEnvironment
-readEnvironment = do
-    Options {..} <- execArgParser
-    return
-        AppEnvironment
-            { connectionString = fromMaybe "db.sqlite3" dbConnection
-            , command = optCommand
-            }
+readCmdLine :: IO (Config Build, Command)
+readCmdLine = do
+    options <- execArgParser
+    return (config options, optCommand options)
 
 newAccountingPeriod :: String -> App ()
 newAccountingPeriod str
