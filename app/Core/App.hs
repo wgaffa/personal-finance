@@ -4,7 +4,6 @@
 
 module Core.App (
     App (..),
-    AppEnvironment (..),
     Command (..),
     ShowOptions (..),
     appIdentifier,

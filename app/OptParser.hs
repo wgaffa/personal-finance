@@ -27,9 +27,11 @@ import Options.Applicative (
     long,
     metavar,
     progDesc,
+    showDefault,
     str,
     strOption,
     switch,
+    value,
  )
 
 import Data.Monoid (Last (Last))
@@ -53,7 +55,16 @@ lastOpt :: Parser a -> Parser (Build Last a)
 lastOpt parser = Build . Last <$> optional parser
 
 configOpt :: Parser (Config Build)
-configOpt = Config <$> lastOpt (strOption (long "db-connection" <> help "Connection information to the database"))
+configOpt =
+    Config
+        <$> lastOpt
+            ( strOption
+                ( long "db-connection"
+                    <> help "Connection information to the database"
+                    <> value "db.sqlite3"
+                    <> showDefault
+                )
+            )
 
 commands :: Parser Command
 commands =
