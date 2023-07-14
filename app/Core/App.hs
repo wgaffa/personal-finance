@@ -7,8 +7,6 @@ module Core.App (
     AppEnvironment (..),
 ) where
 
-import System.Console.Haskeline (InputT)
-
 import Control.Monad.Catch (
     MonadCatch,
     MonadMask,
@@ -33,7 +31,7 @@ data AppEnvironment = AppEnvironment
     }
 
 newtype App a = App
-    { runApp :: ReaderT AppEnvironment (ExceptT AccountError (InputT IO)) a
+    { runApp :: ReaderT AppEnvironment (ExceptT AccountError IO) a
     }
     deriving (Functor, Applicative, Monad, MonadIO)
     deriving newtype (MonadReader AppEnvironment, MonadError AccountError)

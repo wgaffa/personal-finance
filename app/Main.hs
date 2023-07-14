@@ -13,6 +13,7 @@ import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
 import Control.Monad (forM)
+import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except (
     MonadError (),
     MonadIO (liftIO),
@@ -156,7 +157,7 @@ addTransaction = do
     return ()
 
 createAccountInteractive ::
-    (MonadError AccountError m, MonadIO m) =>
+    (MonadError AccountError m, MonadIO m, MonadMask m) =>
     m Account
 createAccountInteractive =
     Account
@@ -169,7 +170,7 @@ createAccountInteractive =
         <*> promptExcept "Element: " (maybeToEither InvalidElement . readMaybe)
 
 findAccountInteractive ::
-    (MonadError AccountError m, MonadIO m) =>
+    (MonadError AccountError m, MonadIO m, MonadMask m) =>
     Connection ->
     m Account
 findAccountInteractive conn =
@@ -180,7 +181,7 @@ findAccountInteractive conn =
         >>= liftEither . maybeToEither AccountNotFound
 
 createTransactionAmountInteractive ::
-    (Accountable a, MonadError AccountError m, MonadIO m) =>
+    (Accountable a, MonadError AccountError m, MonadIO m, MonadMask m) =>
     a ->
     m (TransactionAmount Double)
 createTransactionAmountInteractive x =
