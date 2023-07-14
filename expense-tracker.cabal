@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.35.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: cfc93b14a3d547a5d21ef5577f024aad149c030f2e41b4e4fbddfc29d485e5da
+-- hash: abc1d526371969743ebb998abc500998f35187bd6de082d6f8ad598a8eafbe10
 
 name:           expense-tracker
 version:        0.3.0.0
@@ -37,6 +37,7 @@ library
   build-depends:
       base >=4.7 && <5
     , containers
+    , haskeline
     , text
     , time
     , uuid
@@ -69,6 +70,7 @@ executable dee-book
     , expense-tracker
     , free
     , gitrev
+    , haskeline
     , mtl
     , optparse-applicative
     , repline
@@ -91,6 +93,7 @@ test-suite expense-tracker-test
       base >=4.7 && <5
     , containers
     , expense-tracker
+    , haskeline
     , text
     , time
     , uuid

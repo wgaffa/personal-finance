@@ -6,19 +6,21 @@ module Core.Prompt (
     promptExcept,
 ) where
 
-import System.IO (hFlush, stdout)
+import System.Console.Haskeline
 
 import Data.Char (isSpace)
+import Data.Maybe
 import Data.Time (Day)
 import Text.Read (readMaybe)
 
+import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except
 
 import Core.Error
 import Utils.Maybe
 
 promptDate ::
-    (MonadError AccountError m, MonadIO m) =>
+    (MonadError AccountError m, MonadIO m, MonadMask m) =>
     String ->
     Day ->
     m Day
@@ -30,7 +32,7 @@ promptDate text date =
                 else liftEither $ maybeToEither ParseError . readMaybe $ xs
 
 promptExcept ::
-    (MonadError e m, MonadIO m) =>
+    (MonadError e m, MonadIO m, MonadMask m) =>
     String ->
     (String -> Either e a) ->
     m a
@@ -38,8 +40,5 @@ promptExcept text f =
     (liftIO . prompt $ text)
         >>= liftEither . f
 
-prompt :: String -> IO String
-prompt text = do
-    putStr text
-    hFlush stdout
-    getLine
+prompt :: (MonadIO m, MonadMask m) => String -> m String
+prompt text = runInputT defaultSettings (getInputLine text) >>= return . fromMaybe mempty

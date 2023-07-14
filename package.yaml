@@ -25,6 +25,7 @@ dependencies:
 - containers
 - time
 - uuid
+- haskeline
 
 library:
   source-dirs: src
