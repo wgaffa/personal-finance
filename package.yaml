@@ -24,11 +24,11 @@ dependencies:
 - text
 - containers
 - time
-- uuid
-- haskeline
 
 library:
   source-dirs: src
+  dependencies:
+    - uuid
 
 executables:
   dee-book:
@@ -49,6 +49,7 @@ executables:
     - boxes
     - gitrev
     - free
+    - haskeline
 
 tests:
   expense-tracker-test:
