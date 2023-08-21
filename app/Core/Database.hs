@@ -24,11 +24,9 @@ module Core.Database (
 import Data.Maybe (fromMaybe, isJust)
 import Data.Time (Day)
 
-import Control.Monad (forM, forM_, when)
+import Control.Monad (forM, forM_, when, unless)
 import Control.Monad.Except (
     MonadError (throwError),
-    MonadIO (liftIO),
-    unless,
  )
 import Control.Monad.Trans.Maybe (MaybeT (..))
 
@@ -60,6 +58,7 @@ import qualified Data.Text as Text
 import Core.Error
 import Expense.Account
 import Expense.Transaction
+import Control.Monad.Trans (MonadIO, liftIO)
 
 instance ToField AccountNumber where
     toField = toField . unAccountNumber

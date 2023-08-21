@@ -15,6 +15,7 @@ import Text.Read (readMaybe)
 
 import Control.Monad.Catch (MonadMask)
 import Control.Monad.Except
+import Control.Monad.Trans ()
 
 import Core.Error
 import Utils.Maybe
