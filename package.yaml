@@ -43,7 +43,6 @@ executables:
     - expense-tracker
     - mtl
     - optparse-applicative
-    - repline
     - transformers
     - sqlite-simple
     - exceptions

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: abc1d526371969743ebb998abc500998f35187bd6de082d6f8ad598a8eafbe10
+-- hash: 3666d21eeb66e7e1b53b44b6965a2baf0ff8308af7038b2e5cfda68334e4d406
 
 name:           expense-tracker
 version:        0.3.0.0
@@ -73,7 +73,6 @@ executable dee-book
     , haskeline
     , mtl
     , optparse-applicative
-    , repline
     , sqlite-simple
     , text
     , time
