@@ -11,6 +11,7 @@ import System.Console.Haskeline
 import Data.Char (isSpace)
 import Data.Maybe
 import Data.Time (Day)
+import Data.Functor ((<&>))
 import Text.Read (readMaybe)
 
 import Control.Monad.Catch (MonadMask)
@@ -42,4 +43,4 @@ promptExcept text f =
         >>= liftEither . f
 
 prompt :: (MonadIO m, MonadMask m) => String -> m String
-prompt text = runInputT defaultSettings (getInputLine text) >>= return . fromMaybe mempty
+prompt text = runInputT defaultSettings (getInputLine text) <&> fromMaybe mempty
