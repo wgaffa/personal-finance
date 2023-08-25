@@ -15,12 +15,12 @@ module Core.PrettyPrint (
 
 import Prelude hiding ((<>))
 
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, listToMaybe)
 import qualified Data.Text as Text
 
 import Data.Function (on)
 import Data.List (transpose)
-import Data.Monoid (Sum (Sum), getSum)
+import Data.Monoid
 
 import Text.PrettyPrint.Boxes (
     Box (cols),
@@ -158,6 +158,22 @@ renderLedger ledger@(Ledger account entries) =
                 )
     width = cols body
     headers = ["Date", "Debit", "Credit", "Description"]
+
+lineBreak :: Int -> Text.Text -> [Text.Text]
+lineBreak width src = go [] 0 $ Text.words src
+  where
+    go :: [Text.Text] -> Int -> [Text.Text] -> [Text.Text]
+    go breaks _ [] = reverse breaks
+    go breaks 0 (w : ws) = case Text.compareLength w width of
+        GT -> let (s, s') = Text.splitAt width w in go (s : breaks) 0 (s' : ws)
+        _ -> go (w : breaks) (Text.length w + 1) ws
+    go breaks currentLength (w : ws)
+        | currentLength + Text.length w > width = go (w : breaks) 0 ws
+        | otherwise =
+            let newLen = currentLength + 1 + Text.length w
+             in case listToMaybe breaks of
+                    Just x -> go (Text.snoc x ' ' <> w : tail breaks) newLen ws
+                    Nothing -> go [w] newLen ws
 
 ledgerRow :: (Integral a) => LedgerEntry a -> [Text.Text]
 ledgerRow (LedgerEntry details amount) =
