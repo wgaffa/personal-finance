@@ -109,7 +109,9 @@ renderJournal (Journal details txs) =
             $ txs
     title = alignHoriz center2 width . text $ titleText
     titleText =
-        "Transaction for " ++ show (date details) ++ " - "
+        "Transaction for "
+            ++ show (date details)
+            ++ " - "
             ++ fromMaybe mempty (description details)
     width = cols body
     separator = text $ replicate width '-'
