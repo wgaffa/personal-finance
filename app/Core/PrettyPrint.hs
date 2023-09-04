@@ -49,8 +49,8 @@ formatColumns items =
   where
     width = maximum $ map Text.length items
 
-boxAccount :: Account -> Box
-boxAccount (Account number name element) =
+boxAccount1 :: Account -> Box
+boxAccount1 (Account number name element) =
     hsep 2 left boxes
   where
     boxes =
@@ -59,8 +59,24 @@ boxAccount (Account number name element) =
         , text (show element)
         ]
 
+boxAccount :: Int -> Account -> Box
+boxAccount width (Account number name element) =
+    hsep 2 left boxes
+  where
+    boxes =
+        [ text number'
+        , text (Text.unpack . truncate . unAccountName $ name)
+        , text element'
+        ]
+    number' = show . unAccountNumber $ number
+    element' = show element
+    truncate src = case Text.compareLength src availableWidth of
+        GT -> Text.take (availableWidth - 3) src <> "..."
+        _ -> src
+    availableWidth = width - length number' - length element' - 4
+
 printAccount :: Account -> IO ()
-printAccount = printBox . boxAccount
+printAccount = printBox . boxAccount1
 
 printListAccounts :: [Account] -> IO ()
 printListAccounts =
@@ -148,7 +164,7 @@ renderLedger ledger@(Ledger account entries) =
             . (++) [headers]
             . map ledgerRow
             $ entries
-    title = alignHoriz center2 width (boxAccount account)
+    title = alignHoriz center2 width (boxAccount width account)
     separator = text $ replicate width '-'
     balanceBox =
         text "Balance:"
